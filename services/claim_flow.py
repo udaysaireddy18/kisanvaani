@@ -26,14 +26,14 @@ MAX_FOLLOWUPS = 2
 # unless a language is passed explicitly.
 REPLIES: dict[str, dict[str, str]] = {
     "hi": {
-        "ask_crop": "Kaunsi fasal kharab hui hai? (jaise: ganna, gehu, dhan)",
-        "ask_damage": "Fasal ko kya nuksan hua? (jaise: barish, sukhna, keede, aag)",
-        "ask_village": "Aapka gaon/village ka naam kya hai?",
-        "ask_date": "Fasal kab kharab hui? Date bataiye (DD/MM/YYYY).",
-        "need_all": "Kripya poori jankari bhejein: fasal, nuksan ka prakar, gaon, aur date (DD/MM/YYYY).",
-        "ask_photo": "Dhanyavaad. Kripya 1-3 nuksan ki photo bhejein.",
-        "ready": "Aapka claim tayyar hai. Claim ID: {claim_id}. Operator dashboard se PDF generate kiya jayega.",
-        "unsupported": "Kripya text, voice note, ya photo bhejein taaki hum aapka claim bana sakein.",
+        "ask_crop": "कौन सी फसल खराब हुई है? (जैसे: गन्ना, गेहूँ, धान)",
+        "ask_damage": "फसल को क्या नुकसान हुआ? (जैसे: बारिश, सूखा, कीड़े, आग)",
+        "ask_village": "आपका गाँव/ग्राम का नाम क्या है?",
+        "ask_date": "फसल कब खराब हुई? तारीख बताइए (DD/MM/YYYY).",
+        "need_all": "कृपया पूरी जानकारी भेजें: फसल, नुकसान का प्रकार, गाँव और तारीख (DD/MM/YYYY).",
+        "ask_photo": "धन्यवाद। कृपया 1-3 नुकसान की फ़ोटो भेजें।",
+        "ready": "आपका क्लेम तैयार है। क्लेम ID: {claim_id}. ऑपरेटर PDF तैयार करेगा।",
+        "unsupported": "कृपया टेक्स्ट, वॉइस नोट या फ़ोटो भेजें ताकि हम आपका क्लेम बना सकें।",
     },
     "en": {
         "ask_crop": "Which crop was damaged? (e.g. sugarcane, wheat, rice)",

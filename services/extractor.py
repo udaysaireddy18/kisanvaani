@@ -14,30 +14,30 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 CROP_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "sugarcane": ("ganna", "ganne", "ganne ki", "sugarcane", "చెరకు", "கரும்பு", "আখ", "ऊस"),
-    "wheat": ("gehu", "gehun", "wheat", "గోధుమ", "கோதுமை", "গম", "गहू"),
-    "rice": ("dhan", "dhaan", "chawal", "rice", "paddy", "వరి", "அரிசி", "ধান", "तांदूळ"),
-    "cotton": ("kapas", "cotton", "పత్తి", "பருத்தி", "তুলা", "कापूस"),
-    "maize": ("makka", "makkaa", "maize", "corn", "మొక్కజొన్న", "சோளம்", "ভুট্টা", "मका"),
-    "potato": ("aloo", "aaloo", "potato", "బంగాళాదుంప", "உருளைக்கிழங்கு", "আলু", "बटाटा"),
-    "onion": ("pyaz", "pyaaz", "onion", "ఉల్లిపాయ", "வெங்காயம்", "পেঁয়াজ", "कांदा"),
+    "sugarcane": ("ganna", "ganne", "ganne ki", "sugarcane", "गन्ना", "गन्ने", "गन्ने की", "చెరకు", "கரும்பு", "আখ", "ऊस"),
+    "wheat": ("gehu", "gehun", "wheat", "गेहूँ", "गेहूं", "गेहू", "గోధుమ", "கோதுமை", "গম", "गहू"),
+    "rice": ("dhan", "dhaan", "chawal", "rice", "paddy", "धान", "चावल", "వరి", "அரிசி", "ধান", "तांदूळ"),
+    "cotton": ("kapas", "cotton", "कपास", "పత్తి", "பருத்தி", "তুলা", "कापूस"),
+    "maize": ("makka", "makkaa", "maize", "corn", "मक्का", "మొక్కజొన్న", "சோளம்", "ভুট্টা", "मका"),
+    "potato": ("aloo", "aaloo", "potato", "आलू", "బంగాళాదుంప", "உருளைக்கிழங்கு", "আলু", "बटाटा"),
+    "onion": ("pyaz", "pyaaz", "onion", "प्याज़", "प्याज", "ఉల్లిపాయ", "வெங்காயம்", "পেঁয়াজ", "कांदा"),
 }
 
 DAMAGE_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "rain": ("barish", "baarish", "rain", "flood", "baadh", "baarh", "paani", "jalbharav",
+    "rain": ("barish", "baarish", "rain", "flood", "baadh", "baarh", "paani", "jalbharav", "बारिश", "बाढ़", "पानी",
              "వర్షం", "மழை", "বৃষ্টি", "पाऊस"),
-    "drought": ("sukhna", "sukha", "drought", "sookha",
+    "drought": ("sukhna", "sukha", "drought", "sookha", "सूखा", "सुखा",
                 "కరువు", "வறட்சி", "খরা", "दुष्काळ"),
-    "pest": ("keede", "keeda", "keet", "pest", "insect", "kida",
+    "pest": ("keede", "keeda", "keet", "pest", "insect", "kida", "कीड़े", "कीड़ा", "कीट",
              "కీటకాలు", "பூச்சிகள்", "কীটপতঙ্গ", "कीडे"),
-    "fire": ("aag", "fire", "jal gaya", "jal gaye", "అగ్ని", "தீ", "আগুন", "आग"),
-    "storm": ("toofan", "andhi", "storm", "cyclone", "తుఫాను", "புயல்", "ঝড়", "वादळ"),
-    "hail": ("ole", "ola", "hail", "hailstorm", "వడగళ్ళు", "கల்மழை", "শিলাবৃষ্টি", "गारपीट"),
+    "fire": ("aag", "fire", "jal gaya", "jal gaye", "आग", "అగ్ని", "தீ", "আগুন", "आग"),
+    "storm": ("toofan", "andhi", "storm", "cyclone", "तूफ़ान", "तूफान", "आंधी", "తుఫాను", "புயல்", "ঝড়", "वादळ"),
+    "hail": ("ole", "ola", "hail", "hailstorm", "ओले", "ओला", "వడగళ్ళు", "கల்மழை", "শিলাবৃষ্টি", "गारपीट"),
 }
 
 VILLAGE_CUES = (
     "village", "gaon", "gaav", "gram", "in", "mein", "me",
-    "ఊరు", "గ్రామం", "ஊர்", "கிராமம்", "গ্রাম", "গাঁও", "गाव", "ग्राम",
+    "ఊరు", "గ్రామం", "ஊர்", "கிராமம்", "গ্রাম", "গাঁও", "गाव", "गाँव", "गांव", "ग्राम",
 )
 
 

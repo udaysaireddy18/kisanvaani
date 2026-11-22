@@ -104,10 +104,11 @@ def api_web_message() -> tuple[dict, int]:
     phone = str(body.get("phone") or "").strip()
     message = str(body.get("message") or "").strip()
     claim_id = str(body.get("claim_id") or "").strip() or None
+    language = str(body.get("language") or "hi").strip()
     if not phone or not message:
         return jsonify({"error": "phone and message are required"}), 400
     try:
-        result = process_web_text(phone=phone, text=message, claim_id=claim_id)
+        result = process_web_text(phone=phone, text=message, claim_id=claim_id, language=language)
         return jsonify(result), 200
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -121,11 +122,12 @@ def api_web_photo() -> tuple[dict, int]:
     """Handle web photo upload and attach it to a claim."""
     phone = str(request.form.get("phone") or "").strip()
     claim_id = str(request.form.get("claim_id") or "").strip() or None
+    language = str(request.form.get("language") or "hi").strip()
     photo = request.files.get("photo")
     if not phone or not photo:
         return jsonify({"error": "phone and photo are required"}), 400
     try:
-        result = process_web_photo(phone=phone, photo=photo, claim_id=claim_id)
+        result = process_web_photo(phone=phone, photo=photo, claim_id=claim_id, language=language)
         return jsonify(result), 200
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

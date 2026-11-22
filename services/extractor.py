@@ -14,23 +14,31 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 CROP_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "sugarcane": ("ganna", "ganne", "ganne ki", "sugarcane"),
-    "wheat": ("gehu", "gehun", "wheat"),
-    "rice": ("dhan", "dhaan", "chawal", "rice", "paddy"),
-    "cotton": ("kapas", "cotton"),
-    "maize": ("makka", "makkaa", "maize", "corn"),
-    "potato": ("aloo", "aaloo", "potato"),
-    "onion": ("pyaz", "pyaaz", "onion"),
+    "sugarcane": ("ganna", "ganne", "ganne ki", "sugarcane", "చెరకు", "கரும்பு", "আখ", "ऊस"),
+    "wheat": ("gehu", "gehun", "wheat", "గోధుమ", "கோதுமை", "গম", "गहू"),
+    "rice": ("dhan", "dhaan", "chawal", "rice", "paddy", "వరి", "அரிசி", "ধান", "तांदूळ"),
+    "cotton": ("kapas", "cotton", "పత్తి", "பருத்தி", "তুলা", "कापूस"),
+    "maize": ("makka", "makkaa", "maize", "corn", "మొక్కజొన్న", "சோளம்", "ভুট্টা", "मका"),
+    "potato": ("aloo", "aaloo", "potato", "బంగాళాదుంప", "உருளைக்கிழங்கு", "আলু", "बटाटा"),
+    "onion": ("pyaz", "pyaaz", "onion", "ఉల్లిపాయ", "வெங்காயம்", "পেঁয়াজ", "कांदा"),
 }
 
 DAMAGE_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "rain": ("barish", "baarish", "rain", "flood", "baadh", "baarh", "paani", "jalbharav"),
-    "drought": ("sukhna", "sukha", "drought", "sookha"),
-    "pest": ("keede", "keeda", "keet", "pest", "insect", "kida"),
-    "fire": ("aag", "fire", "jal gaya", "jal gaye"),
-    "storm": ("toofan", "andhi", "storm", "cyclone"),
-    "hail": ("ole", "ola", "hail", "hailstorm"),
+    "rain": ("barish", "baarish", "rain", "flood", "baadh", "baarh", "paani", "jalbharav",
+             "వర్షం", "மழை", "বৃষ্টি", "पाऊस"),
+    "drought": ("sukhna", "sukha", "drought", "sookha",
+                "కరువు", "வறட்சி", "খরা", "दुष्काळ"),
+    "pest": ("keede", "keeda", "keet", "pest", "insect", "kida",
+             "కీటకాలు", "பூச்சிகள்", "কীটপতঙ্গ", "कीडे"),
+    "fire": ("aag", "fire", "jal gaya", "jal gaye", "అగ్ని", "தீ", "আগুন", "आग"),
+    "storm": ("toofan", "andhi", "storm", "cyclone", "తుఫాను", "புயல்", "ঝড়", "वादळ"),
+    "hail": ("ole", "ola", "hail", "hailstorm", "వడగళ్ళు", "கల்மழை", "শিলাবৃষ্টি", "गारपीट"),
 }
+
+VILLAGE_CUES = (
+    "village", "gaon", "gaav", "gram", "in", "mein", "me",
+    "ఊరు", "గ్రామం", "ஊர்", "கிராமம்", "গ্রাম", "গাঁও", "गाव", "ग्राम",
+)
 
 
 def extract_fields(text: str) -> dict[str, Any]:
@@ -68,25 +76,25 @@ def _match_keyword(text: str, mapping: dict[str, tuple[str, ...]]) -> str | None
 
 
 def _extract_village(raw: str, normalized: str) -> str | None:
-    """Extract village/location using Hindi/English cues."""
-    patterns = [
-        r"\b(?:village|gaon|gaav|gram)\s+([A-Za-z][A-Za-z\s\-]{1,40})",
-        r"\b(?:in|mein|me)\s+([A-Za-z][A-Za-z\s\-]{1,40})",
-    ]
-    for pattern in patterns:
+    """Extract village/location using cues in supported languages."""
+    for cue in VILLAGE_CUES:
+        pattern = rf"(?<!\w){re.escape(cue)}(?!\w)\s+([^,.!?\n]{{1,60}})"
         match = re.search(pattern, raw, flags=re.IGNORECASE)
         if not match:
             continue
         candidate = _clean_location(match.group(1))
         if candidate:
             return candidate
-    # Fallback: look for "gaon" in normalized but capture original case token nearby
     return None
 
 
 def _clean_location(value: str) -> str | None:
     """Clean a location candidate by trimming trailing noise."""
-    cleaned = re.split(r"[,.!?]|(?:\bke\b|\bki\b|\bmein\b|\bme\b|\bse\b|\bpar\b)", value, maxsplit=1)[0]
+    cleaned = re.split(
+        r"[,.!?]|(?:\bke\b|\bki\b|\bmein\b|\bme\b|\bse\b|\bpar\b|\bon\b|\band\b)",
+        value, maxsplit=1,
+    )[0]
+    cleaned = re.split(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", cleaned, maxsplit=1)[0]
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" -_")
     if not cleaned:
         return None

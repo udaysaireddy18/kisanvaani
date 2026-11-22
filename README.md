@@ -8,7 +8,7 @@ It now has **two interfaces over the same backend**:
 
 ## What it does
 
-1. Farmer reports damage (text now; WhatsApp voice later).
+1. Farmer reports damage by typing or speaking in the browser, with a chosen language (Hindi, English, Telugu, Tamil, Bengali, Marathi).
 2. Backend extracts claim fields: crop, damage, village, date.
 3. Bot asks 1-2 follow-up questions if required fields are missing.
 4. Farmer uploads/sends 1-3 damage photos.
@@ -104,14 +104,20 @@ The WhatsApp flow is already implemented; you only need to connect Meta:
 
 No redesign needed: web and WhatsApp both use the same extraction, state machine, DB, and PDF generation.
 
+## Voice input and languages
+
+- Choose a language in the web demo dropdown, click **🎙 Speak**, allow microphone access, speak the report, review the transcript in the box, then click **Send Message**.
+- Voice recognition uses the browser's Web Speech API, so **Chrome or Edge** are recommended. No API key is needed for voice in the web demo.
+- Bot replies follow the selected language. Crop/damage/village/date extraction supports keywords in all six supported languages.
+
 ## Web API endpoints (demo)
 
 - `GET /` - web UI
 - `GET /health` - health check
 - `GET /api/claims` - list claims
 - `GET /api/claims/<id>` - claim detail
-- `POST /api/web/messages` - `{phone, message, claim_id?}`
-- `POST /api/web/photos` - multipart form: `phone`, `claim_id?`, `photo`
+- `POST /api/web/messages` - `{phone, message, language?, claim_id?}`
+- `POST /api/web/photos` - multipart form: `phone`, `photo`, `language?`, `claim_id?`
 - `POST /api/claims/<id>/pdf` - generate PDF
 - `GET /api/claims/<id>/pdf` - download PDF
 - `GET /webhook`, `POST /webhook` - WhatsApp Cloud API

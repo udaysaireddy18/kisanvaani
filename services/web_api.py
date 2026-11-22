@@ -18,14 +18,15 @@ from werkzeug.utils import secure_filename
 from config import MEDIA_DIR
 from db.models import Claim, ClaimStatus, Media, Message, MessageDirection
 from db.session import session_scope
-from services.claim_flow import _apply_extraction, _next_reply, _outbound_messages
+from services.claim_flow import _apply_extraction, _next_reply, _outbound_messages, normalize_language
 from services.extractor import extract_fields
 
 logger = logging.getLogger(__name__)
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
 
-def process_web_text(phone: str, text: str, claim_id: str | None = None) -> dict[str, Any]:
+def process_web_text(phone: str, text: str, claim_id: str | None = None,
+                     language: str = "hi") -> dict[str, Any]:
     """Process a web text message through the existing claim flow logic."""
     phone = (phone or "").strip()
     text = (text or "").strip()
@@ -37,13 +38,14 @@ def process_web_text(phone: str, text: str, claim_id: str | None = None) -> dict
         claim = _get_open_claim(session, phone, claim_id)
         _save_web_message(session, claim, phone, "text", text, transcript=None)
         _apply_extraction(claim, extraction)
-        replies = _next_reply(session, claim)
+        replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
         return {"replies": replies, "claim": serialize_claim(session, claim)}
 
 
-def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = None) -> dict[str, Any]:
+def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = None,
+                      language: str = "hi") -> dict[str, Any]:
     """Save an uploaded photo and attach it to a claim."""
     phone = (phone or "").strip()
     if not phone:
@@ -69,7 +71,7 @@ def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = Non
             file_path=str(file_path), mime_type=photo.mimetype or "image/jpeg",
         ))
         session.flush()  # Make the photo visible to _next_reply's photo count.
-        replies = _next_reply(session, claim)
+        replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
         return {"replies": replies, "claim": serialize_claim(session, claim)}

@@ -9,6 +9,77 @@ function setStatus(msg, isError = false) {
   statusEl.className = "status" + (isError ? " error" : "");
 }
 
+const languageSelect = $("language");
+const voiceBtn = $("voiceBtn");
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+
+function currentLanguage() {
+  return languageSelect ? languageSelect.value : "hi";
+}
+
+function initRecognition() {
+  if (!SpeechRecognition) return;
+  recognition = new SpeechRecognition();
+  recognition.lang = currentLanguage();
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+
+  recognition.onstart = () => {
+    listening = true;
+    voiceBtn.classList.add("listening");
+    voiceBtn.textContent = "■ Stop";
+    setStatus("Listening... speak now.");
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join(" ")
+      .trim();
+    if (!transcript) return;
+    const box = $("message");
+    box.value = box.value.trim() ? `${box.value.trim()} ${transcript}` : transcript;
+    setStatus("Transcript added. Review it, then click Send Message.");
+  };
+
+  recognition.onerror = (event) => {
+    const errors = {
+      "not-allowed": "Microphone permission denied. Allow mic access and try again.",
+      "no-speech": "No speech detected. Try again.",
+      "audio-capture": "No microphone found.",
+      "network": "Speech service unavailable. You can type the message instead.",
+    };
+    setStatus(errors[event.error] || `Voice error: ${event.error}`, true);
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    voiceBtn.classList.remove("listening");
+    voiceBtn.textContent = "🎙 Speak";
+  };
+}
+
+function toggleVoice() {
+  if (!SpeechRecognition) {
+    setStatus("Voice input is not supported in this browser. Use Chrome/Edge, or type the message.", true);
+    return;
+  }
+  if (!recognition) initRecognition();
+  if (listening) {
+    recognition.stop();
+    return;
+  }
+  recognition.lang = currentLanguage();
+  try {
+    recognition.start();
+  } catch (err) {
+    setStatus(`Could not start voice input: ${err.message}`, true);
+  }
+}
+
 function addMsg(role, text) {
   const div = document.createElement("div");
   div.className = `msg ${role}`;
@@ -93,7 +164,7 @@ async function sendMessage() {
   setStatus("Sending...");
   addMsg("user", message);
   try {
-    const data = await api("/api/web/messages", { method: "POST", body: JSON.stringify({ phone, message, claim_id: claimId }) });
+    const data = await api("/api/web/messages", { method: "POST", body: JSON.stringify({ phone, message, claim_id: claimId, language: currentLanguage() }) });
     (data.replies || []).forEach(r => addMsg("bot", r));
     renderClaim(data.claim);
     $("message").value = "";
@@ -114,6 +185,7 @@ async function uploadPhoto() {
     const fd = new FormData();
     fd.append("photo", file);
     fd.append("phone", phone);
+    fd.append("language", currentLanguage());
     if (claimId) fd.append("claim_id", claimId);
     const res = await fetch("/api/web/photos", { method: "POST", body: fd });
     const data = await res.json().catch(() => ({}));
@@ -142,6 +214,11 @@ async function generatePdf() {
 
 $("sendBtn").addEventListener("click", sendMessage);
 $("photoBtn").addEventListener("click", uploadPhoto);
+voiceBtn.addEventListener("click", toggleVoice);
+languageSelect.addEventListener("change", () => {
+  if (recognition) recognition.lang = currentLanguage();
+  setStatus(`Language set to ${languageSelect.options[languageSelect.selectedIndex].text}.`);
+});
 $("refreshBtn").addEventListener("click", async () => { await refreshClaim(); await loadClaims(); });
 $("resetBtn").addEventListener("click", () => { claimId = null; chat.innerHTML = ""; renderClaim(null); setStatus("Started new demo claim session."); });
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });

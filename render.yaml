@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: kisanvaani
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python -m db.init_db
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: DASHBOARD_PASSWORD
+        generateValue: true
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////var/data/kisanvaani.db
+      - key: MEDIA_DIR
+        value: /var/data/media
+      - key: PDF_DIR
+        value: /var/data/generated_pdfs
+    disk:
+      name: kisanvaani-data
+      mountPath: /var/data
+      sizeGB: 1

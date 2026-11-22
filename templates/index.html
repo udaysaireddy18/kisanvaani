@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KisanVaani - Crop Damage Claim Demo</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <p class="badge">Real-world MVP Demo</p>
+      <h1>KisanVaani</h1>
+      <p class="subtitle">Voice-first crop damage reporting. This web demo uses the same claim extraction, state machine, and PDF generator that will power the WhatsApp bot.</p>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Report Crop Damage</h2>
+        <p class="muted">Describe the damage in Hindi or English. Example: <em>"Meri ganne ki fasal barish se kharab ho gayi, village Rampur."</em></p>
+        <label for="phone">Phone number</label>
+        <input id="phone" type="text" value="+919999001111" placeholder="+91..." />
+        <label for="message">Message / voice transcript</label>
+        <textarea id="message" rows="4" placeholder="Type farmer message here..."></textarea>
+        <div class="actions">
+          <button id="sendBtn" class="btn primary">Send Message</button>
+          <button id="resetBtn" class="btn">New Demo Claim</button>
+        </div>
+        <div id="status" class="status"></div>
+
+        <label for="photo">Upload damage photo (optional, 1-3)</label>
+        <input id="photo" type="file" accept="image/*" />
+        <div class="actions">
+          <button id="photoBtn" class="btn">Upload Photo</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Bot Reply</h2>
+        <div id="chat" class="chat"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <h2>Current Claim</h2>
+        <button id="refreshBtn" class="btn">Refresh</button>
+      </div>
+      <div id="claim" class="claim"></div>
+      <div id="pdfArea" class="pdf-area"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <h2>Recent Claims</h2>
+        <span class="muted">Operator view</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Claim ID</th><th>Phone</th><th>Status</th><th>Crop</th><th>Damage</th><th>Village</th><th>Date</th><th>PDF</th></tr></thead>
+          <tbody id="claimsBody"><tr><td colspan="8" class="muted">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer muted">WhatsApp webhook endpoints <code>/webhook</code> remain active for future Meta integration. This web UI uses the same backend services.</footer>
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ from typing import Any
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
 from config import FLASK_DEBUG, FLASK_HOST, FLASK_PORT, WHATSAPP_VERIFY_TOKEN
+from db.init_db import init_db
 from db.models import Claim, Media, Message
 from db.session import session_scope
 from services.claim_flow import process_incoming_message
@@ -29,6 +30,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+
+# Cloud hosts often have an ephemeral filesystem, so the database file created
+# during the build step may not exist at runtime. Initialize tables on startup.
+init_db()
 
 
 @app.get("/health")

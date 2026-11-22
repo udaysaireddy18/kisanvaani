@@ -123,6 +123,7 @@ def _handle_image(message: dict[str, Any], phone: str, msg_id: str | None, raw_p
             claim_id=claim.id, media_type="image", whatsapp_media_id=media_id,
             file_path=downloaded["file_path"], mime_type=downloaded.get("mime_type"),
         ))
+        session.flush()  # Make the photo visible to _next_reply's photo count.
         if caption:
             _apply_extraction(claim, extraction)
         reply = _next_reply(session, claim)

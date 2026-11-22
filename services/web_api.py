@@ -68,6 +68,7 @@ def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = Non
             claim_id=claim.id, media_type="image", whatsapp_media_id=None,
             file_path=str(file_path), mime_type=photo.mimetype or "image/jpeg",
         ))
+        session.flush()  # Make the photo visible to _next_reply's photo count.
         replies = _next_reply(session, claim)
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()

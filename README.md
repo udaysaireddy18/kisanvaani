@@ -3,7 +3,7 @@
 KisanVaani is a voice-first assistant that helps Indian farmers report crop damage in their local language and generates a structured, insurer-ready crop-loss claim packet (JSON + PDF).
 
 It now has **two interfaces over the same backend**:
-- **Web demo (live on internet now):** public form/chat-style UI for reporting damage, uploading photos, tracking claim state, and generating PDF.
+- **Web demo (ready to deploy):** public form/chat-style UI for reporting damage, uploading photos, tracking claim state, and generating PDF.
 - **WhatsApp bot (next phase):** existing `/webhook` + WhatsApp Cloud API integration can be enabled later by adding Meta credentials.
 
 ## What it does
@@ -69,20 +69,23 @@ Optional seed data:
 python -m scripts.seed_demo
 ```
 
-## Deploy to internet (Render - recommended for MVP)
+## Deploy to internet (Render free tier)
 
-This repo includes `render.yaml` and `Procfile`.
+This repo includes `render.yaml` and `Procfile`, so Render can build and run the app automatically.
 
-1. Push `kisanvaani` to a GitHub repo.
-2. In Render, create **New > Blueprint** and select the repo.
-3. Render will provision a web service + persistent disk (`/var/data`) for SQLite/media/PDFs.
-4. Set/confirm env vars:
-   - `DASHBOARD_PASSWORD` (for local Streamlit if used)
-   - `WHATSAPP_VERIFY_TOKEN` (random secret; needed later for WhatsApp)
-   - `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `OPENAI_API_KEY` (only when enabling WhatsApp/voice)
-5. Deploy. Your public URL will serve the web demo at `/`.
+1. Push the code to GitHub (done: `main` contains the full app).
+2. Sign up at [render.com](https://render.com) and connect your GitHub account.
+3. Click **New > Blueprint** and select `udaysaireddy18/kisanvaani`.
+4. Give the blueprint a name and click **Create Blueprint**. Render reads `render.yaml` and starts the web service with Gunicorn.
+5. When the service shows **Live**, open the `onrender.com` URL from the dashboard. The web demo is at `/` and `/health` should return `{"status":"ok"}`.
 
-**Important:** SQLite on cloud hosts needs a persistent disk. Without disk, data may be lost on redeploy/restart.
+Free-tier notes:
+
+- Free web services sleep after inactivity; the first request after sleep can take 30-60 seconds.
+- The filesystem is ephemeral: claims, photos, and PDFs are stored under `/tmp/kisanvaani` and reset whenever the service restarts or redeploys. This is fine for a public demo. For permanent data, upgrade the service to a paid plan and attach a persistent disk (or use a hosted database/storage).
+- Custom domains are available on paid Render plans. On free, use the provided `onrender.com` URL.
+
+WhatsApp/voice credentials (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `OPENAI_API_KEY`) are only needed when you enable the WhatsApp bot; they are not required for the web demo.
 
 ## Enable WhatsApp bot later (same backend)
 

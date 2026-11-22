@@ -3,8 +3,9 @@ services:
     name: kisanvaani
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python -m db.init_db
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -17,12 +18,8 @@ services:
       - key: WHATSAPP_VERIFY_TOKEN
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:////var/data/kisanvaani.db
+        value: sqlite:////tmp/kisanvaani/kisanvaani.db
       - key: MEDIA_DIR
-        value: /var/data/media
+        value: /tmp/kisanvaani/media
       - key: PDF_DIR
-        value: /var/data/generated_pdfs
-    disk:
-      name: kisanvaani-data
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/kisanvaani/generated_pdfs

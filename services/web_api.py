@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -36,12 +37,39 @@ def process_web_text(phone: str, text: str, claim_id: str | None = None,
     extraction = extract_fields(text)
     with session_scope() as session:
         claim = _get_open_claim(session, phone, claim_id)
+        asked_field = (claim.missing_fields or [None])[0]
         _save_web_message(session, claim, phone, "text", text, transcript=None)
         _apply_extraction(claim, extraction)
+        _apply_direct_answer(claim, asked_field, text)
         replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
         return {"replies": replies, "claim": serialize_claim(session, claim)}
+
+
+SHORT_ANSWER_MAX = 40
+VILLAGE_PREFIX_RE = re.compile(
+    r"^\s*(?:village|gaon|gaav|gram|गाँव|गांव|ग्राम)\s+", re.IGNORECASE
+)
+
+
+def _apply_direct_answer(claim: Claim, asked_field: str | None, text: str) -> None:
+    """Use a short follow-up reply (e.g. just a village name) for the asked field."""
+    if not asked_field or asked_field not in (claim.missing_fields or []):
+        return
+    # Only village needs this: crop/damage/date have keyword/date extractors.
+    if asked_field != "village" or len(text) > SHORT_ANSWER_MAX:
+        return
+    value = VILLAGE_PREFIX_RE.sub("", text).strip(" ,.!?।:-")
+    if not value:
+        return
+    logger.info("Applying direct village answer claim_id=%s value=%s", claim.id, value)
+    _apply_extraction(claim, {
+        "crop": claim.crop or "",
+        "damage": claim.damage_type or "",
+        "village": value,
+        "date": claim.incident_date or "",
+    })
 
 
 def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = None,

@@ -107,14 +107,19 @@ def _clean_location(value: str) -> str | None:
 
 def _extract_date(normalized: str) -> str | None:
     """Extract date as DD/MM/YYYY from explicit formats or relative words."""
-    explicit = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", normalized)
+    # Accept 12/11/2026, 12-11-26, 12.11.2026, and even 12/11 (current year).
+    explicit = re.search(r"\b(\d{1,2})\s*[/\-.]\s*(\d{1,2})(?:\s*[/\-.]\s*(\d{2,4}))?\b", normalized)
+    if not explicit:
+        # Also accept spaced dates like "12 11 2026".
+        explicit = re.search(r"\b(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b", normalized)
     if explicit:
-        return _format_date(explicit.group(1), explicit.group(2), explicit.group(3))
+        year = explicit.group(3) or str(datetime.now().year)
+        return _format_date(explicit.group(1), explicit.group(2), year)
 
     today = datetime.now().date()
-    if re.search(r"(?<![a-z])aaj(?![a-z])|\btoday\b", normalized):
+    if re.search(r"(?<![a-zA-Z])(?:aaj|आज)(?![a-zA-Z])|\btoday\b", normalized):
         return today.strftime("%d/%m/%Y")
-    if re.search(r"(?<![a-z])kal(?![a-z])|\byesterday\b", normalized):
+    if re.search(r"(?<![a-zA-Z])(?:kal|कल)(?![a-zA-Z])|\byesterday\b", normalized):
         return (today - timedelta(days=1)).strftime("%d/%m/%Y")
     return None
 

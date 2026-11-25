@@ -7,6 +7,10 @@
   - **Save Details** writes corrections back to the claim, normalizes the date, recalculates missing fields/confidence/status, and resets the follow-up count.
   - Added `PUT /api/claims/<id>/details` and localized confirmation replies in all six languages.
 - Configured this repository to use the GitHub noreply email so new commits are attributed to the account and counted in the contribution graph.
+- Added a **Claim status timeline**.
+  - New `claim_events` table records Claim created, Details received, Photos uploaded, Claim ready, and PDF generated with timestamps.
+  - Claim JSON now includes a `timeline` array, and the web UI renders it under Current Claim.
+  - Older claims without stored events get a derived timeline from their messages, photos, and timestamps.
 
 ## 2026-11-24
 

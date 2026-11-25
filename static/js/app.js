@@ -10,6 +10,12 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+function formatTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg || "";
   statusEl.className = "status" + (isError ? " error" : "");
@@ -108,10 +114,12 @@ function renderClaim(claim) {
     el.innerHTML = '<div class="muted">No claim yet. Send a message to start.</div>';
     pdfArea.innerHTML = "";
     renderReview(null);
+    renderTimeline(null);
     return;
   }
   claimId = claim.id;
   renderReview(claim);
+  renderTimeline(claim);
   const fields = [
     ["Claim ID", claim.id], ["Status", claim.status], ["Phone", claim.farmer_phone],
     ["Crop", claim.crop || "-"], ["Damage", claim.damage_type || "-"], ["Village", claim.village || "-"],
@@ -130,6 +138,33 @@ function renderClaim(claim) {
   } else {
     pdfArea.innerHTML = '<span class="muted">PDF available when claim is READY (all fields + at least 1 photo).</span>';
   }
+}
+
+function renderTimeline(claim) {
+  const el = $("timelineArea");
+  if (!claim) {
+    el.innerHTML = "";
+    return;
+  }
+  const events = claim.timeline || [];
+  if (!events.length) {
+    el.innerHTML = '<p class="muted">No status events yet.</p>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="timeline-card">
+      <h3>Status timeline</h3>
+      <ol class="timeline">
+        ${events.map((event) => `
+          <li class="timeline-item">
+            <span class="dot"></span>
+            <div class="timeline-body">
+              <div class="timeline-label">${escapeHtml(event.label)}</div>
+              <div class="timeline-meta">${escapeHtml(event.status)} · ${escapeHtml(formatTime(event.created_at))}</div>
+            </div>
+          </li>`).join("")}
+      </ol>
+    </div>`;
 }
 
 function renderReview(claim) {

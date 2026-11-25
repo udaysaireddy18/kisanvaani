@@ -2,6 +2,7 @@
 
 Defines the core persistence tables:
 - Claim: farmer claim lifecycle and extracted fields
+- ClaimEvent: timestamped milestones used by the status timeline
 - Message: inbound/outbound WhatsApp messages (idempotent on WhatsApp message_id)
 - Media: stored audio/image files attached to claims/messages
 """
@@ -92,9 +93,32 @@ class Claim(Base):
     media: Mapped[list["Media"]] = relationship(
         back_populates="claim", cascade="all, delete-orphan", order_by="Media.created_at"
     )
+    events: Mapped[list["ClaimEvent"]] = relationship(
+        back_populates="claim", cascade="all, delete-orphan", order_by="ClaimEvent.created_at"
+    )
 
     def __repr__(self) -> str:
         return f"<Claim id={self.id} phone={self.farmer_phone} status={self.status}>"
+
+
+class ClaimEvent(Base):
+    """A timestamped status/milestone event in a claim's lifecycle."""
+
+    __tablename__ = "claim_events"
+    __table_args__ = (Index("ix_claim_events_claim_created", "claim_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    claim_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("claims.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    claim: Mapped["Claim"] = relationship(back_populates="events")
+
+    def __repr__(self) -> str:
+        return f"<ClaimEvent claim_id={self.claim_id} label={self.label}>"
 
 
 class Message(Base):

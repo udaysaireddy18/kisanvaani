@@ -17,7 +17,7 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from config import MEDIA_DIR
-from db.models import Claim, ClaimStatus, Media, Message, MessageDirection
+from db.models import Claim, ClaimEvent, ClaimStatus, Media, Message, MessageDirection
 from db.session import session_scope
 from services.claim_flow import (
     REPLIES,
@@ -26,6 +26,7 @@ from services.claim_flow import (
     _next_reply,
     _outbound_messages,
     normalize_language,
+    record_claim_event,
 )
 from services.extractor import extract_fields, normalize_date
 
@@ -87,6 +88,9 @@ def update_claim_details(claim_id: str, fields: dict[str, Any], language: str = 
         if claim.status == ClaimStatus.PDF_GENERATED:
             raise ValueError("PDF already generated. Start a new demo claim to edit details.")
 
+        was_complete = not bool(claim.missing_fields)
+        previous_status = claim.status
+        old_values = (claim.crop, claim.damage_type, claim.village, claim.incident_date)
         claim.crop = raw_values["crop"] or None
         claim.damage_type = raw_values["damage_type"] or None
         claim.village = raw_values["village"] or None
@@ -104,6 +108,14 @@ def update_claim_details(claim_id: str, fields: dict[str, Any], language: str = 
 
         photos = _count_photos(session, claim.id)
         claim.status = ClaimStatus.READY if not missing and photos >= 1 else ClaimStatus.COLLECTING
+
+        new_values = (claim.crop, claim.damage_type, claim.village, claim.incident_date)
+        if not missing and not was_complete:
+            record_claim_event(claim, "Details received", ClaimStatus.COLLECTING.value)
+        elif new_values != old_values:
+            record_claim_event(claim, "Details updated", claim.status.value)
+        if claim.status == ClaimStatus.READY and previous_status != ClaimStatus.READY:
+            record_claim_event(claim, "Claim ready", ClaimStatus.READY.value)
 
         texts = REPLIES[normalize_language(language)]
         if missing:
@@ -169,11 +181,14 @@ def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = Non
     with session_scope() as session:
         claim = _get_open_claim(session, phone, claim_id)
         _save_web_message(session, claim, phone, "image", filename, transcript=None)
+        first_photo = _count_photos(session, claim.id) == 0
         session.add(Media(
             claim_id=claim.id, media_type="image", whatsapp_media_id=None,
             file_path=str(file_path), mime_type=photo.mimetype or "image/jpeg",
         ))
         session.flush()  # Make the photo visible to _next_reply's photo count.
+        if first_photo:
+            record_claim_event(claim, "Photos uploaded", ClaimStatus.COLLECTING.value)
         replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
@@ -202,8 +217,70 @@ def mark_pdf_generated(claim_id: str, pdf_path: str) -> dict[str, Any] | None:
             return None
         claim.pdf_path = pdf_path
         claim.status = ClaimStatus.PDF_GENERATED
+        record_claim_event(claim, "PDF generated", ClaimStatus.PDF_GENERATED.value)
         session.flush()
         return serialize_claim(session, claim)
+
+
+def _iso(value: Any) -> str | None:
+    """Return an ISO timestamp for a datetime-like value."""
+    return value.isoformat() if value else None
+
+
+def _serialize_timeline(session: Any, claim: Claim) -> list[dict[str, Any]]:
+    """Return status milestones, with a derived fallback for older claims."""
+    events = (
+        session.query(ClaimEvent)
+        .filter(ClaimEvent.claim_id == claim.id)
+        .order_by(ClaimEvent.created_at, ClaimEvent.id)
+        .all()
+    )
+    if events:
+        return [
+            {"label": event.label, "status": event.status, "created_at": _iso(event.created_at)}
+            for event in events
+        ]
+
+    timeline: list[dict[str, Any]] = [
+        {"label": "Claim created", "status": ClaimStatus.NEW.value, "created_at": _iso(claim.created_at)}
+    ]
+    if not (claim.missing_fields or []):
+        first_message = (
+            session.query(Message)
+            .filter(Message.claim_id == claim.id, Message.direction == MessageDirection.INBOUND)
+            .order_by(Message.created_at)
+            .first()
+        )
+        timeline.append({
+            "label": "Details received",
+            "status": ClaimStatus.COLLECTING.value,
+            "created_at": _iso(first_message.created_at if first_message else claim.updated_at),
+        })
+    first_photo = (
+        session.query(Media)
+        .filter(Media.claim_id == claim.id, Media.media_type == "image")
+        .order_by(Media.created_at)
+        .first()
+    )
+    if first_photo:
+        timeline.append({
+            "label": "Photos uploaded",
+            "status": ClaimStatus.COLLECTING.value,
+            "created_at": _iso(first_photo.created_at),
+        })
+    if claim.status in (ClaimStatus.READY, ClaimStatus.PDF_GENERATED):
+        timeline.append({
+            "label": "Claim ready",
+            "status": ClaimStatus.READY.value,
+            "created_at": _iso(claim.updated_at),
+        })
+    if claim.status == ClaimStatus.PDF_GENERATED:
+        timeline.append({
+            "label": "PDF generated",
+            "status": ClaimStatus.PDF_GENERATED.value,
+            "created_at": _iso(claim.updated_at),
+        })
+    return timeline
 
 
 def serialize_claim(session: Any, claim: Claim) -> dict[str, Any]:
@@ -224,6 +301,7 @@ def serialize_claim(session: Any, claim: Claim) -> dict[str, Any]:
         "pdf_path": claim.pdf_path,
         "created_at": claim.created_at.isoformat() if claim.created_at else None,
         "updated_at": claim.updated_at.isoformat() if claim.updated_at else None,
+        "timeline": _serialize_timeline(session, claim),
     }
 
 
@@ -246,6 +324,7 @@ def _get_open_claim(session: Any, phone: str, claim_id: str | None) -> Claim:
     claim = Claim(farmer_phone=phone, status=ClaimStatus.NEW, missing_fields=["crop", "damage", "village", "date"])
     session.add(claim)
     session.flush()
+    record_claim_event(claim, "Claim created", ClaimStatus.NEW.value)
     logger.info("Created web claim claim_id=%s phone=%s", claim.id, phone)
     return claim
 

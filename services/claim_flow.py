@@ -12,7 +12,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from db.models import Claim, ClaimStatus, Media, Message, MessageDirection
+from sqlalchemy.orm import object_session
+
+from db.models import Claim, ClaimEvent, ClaimStatus, Media, Message, MessageDirection
 from db.session import session_scope
 from services.extractor import extract_fields, merge_extraction
 from services.stt import STTError, transcribe_audio
@@ -202,11 +204,14 @@ def _handle_image(message: dict[str, Any], phone: str, msg_id: str | None, raw_p
         claim = _get_or_create_open_claim(session, phone)
         logger.info("Incoming message logged phone=%s type=image claim_id=%s msg_id=%s", phone, claim.id, msg_id)
         _save_message(session, claim, phone, msg_id, "image", caption or media_id, None, raw_payload)
+        first_photo = _count_photos(session, claim.id) == 0
         session.add(Media(
             claim_id=claim.id, media_type="image", whatsapp_media_id=media_id,
             file_path=downloaded["file_path"], mime_type=downloaded.get("mime_type"),
         ))
         session.flush()  # Make the photo visible to _next_reply's photo count.
+        if first_photo:
+            record_claim_event(claim, "Photos uploaded", ClaimStatus.COLLECTING.value)
         if caption:
             _apply_extraction(claim, extraction)
         reply = _next_reply(session, claim)
@@ -239,6 +244,7 @@ def _get_or_create_open_claim(session: Any, phone: str) -> Claim:
     claim = Claim(farmer_phone=phone, status=ClaimStatus.NEW, missing_fields=list(REQUIRED_FIELDS))
     session.add(claim)
     session.flush()
+    record_claim_event(claim, "Claim created", ClaimStatus.NEW.value)
     logger.info("Created claim claim_id=%s phone=%s", claim.id, phone)
     return claim
 
@@ -253,8 +259,20 @@ def _save_message(session: Any, claim: Claim, phone: str, msg_id: str | None,
     ))
 
 
+def record_claim_event(claim: Claim, label: str, status: str | None = None) -> None:
+    """Append a milestone event to a claim's status timeline."""
+    session = object_session(claim)
+    if session is None:
+        logger.warning("Cannot record claim event claim_id=%s label=%s: no session", claim.id, label)
+        return
+    status_value = status or (claim.status.value if hasattr(claim.status, "value") else str(claim.status))
+    session.add(ClaimEvent(claim_id=claim.id, status=status_value, label=label))
+    logger.info("Claim event claim_id=%s status=%s label=%s", claim.id, status_value, label)
+
+
 def _apply_extraction(claim: Claim, extraction: dict[str, Any]) -> None:
     """Merge extraction into claim and update status/missing fields."""
+    had_missing = bool(claim.missing_fields)
     existing = {
         "crop": claim.crop or "", "damage": claim.damage_type or "",
         "village": claim.village or "", "date": claim.incident_date or "",
@@ -268,6 +286,8 @@ def _apply_extraction(claim: Claim, extraction: dict[str, Any]) -> None:
     claim.confidence = float(merged["confidence"])
     if claim.status == ClaimStatus.NEW:
         claim.status = ClaimStatus.COLLECTING
+    if had_missing and not claim.missing_fields:
+        record_claim_event(claim, "Details received", ClaimStatus.COLLECTING.value)
     logger.info("Claim updated claim_id=%s missing=%s status=%s", claim.id, claim.missing_fields, claim.status.value)
 
 
@@ -290,8 +310,11 @@ def _next_reply(session: Any, claim: Claim, language: str = "hi") -> list[str]:
             claim.status = ClaimStatus.COLLECTING
         return [texts["ask_photo"]]
 
+    was_ready = claim.status == ClaimStatus.READY
     if claim.status != ClaimStatus.PDF_GENERATED:
         claim.status = ClaimStatus.READY
+        if not was_ready:
+            record_claim_event(claim, "Claim ready", ClaimStatus.READY.value)
     return [texts["ready"].format(claim_id=claim.id)]
 
 

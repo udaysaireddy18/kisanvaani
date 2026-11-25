@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="hi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KisanVaani - Crop Damage Claim Demo</title>
+  <title data-i18n="page.title">KisanVaani - Crop Damage Claim Demo</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <main class="container">
     <header class="hero">
-      <p class="badge">Real-world MVP Demo</p>
+      <p class="badge" data-i18n="hero.badge">Real-world MVP Demo</p>
       <h1>KisanVaani</h1>
-      <p class="subtitle">Voice-first crop damage reporting. This web demo uses the same claim extraction, state machine, and PDF generator that will power the WhatsApp bot.</p>
+      <p class="subtitle" data-i18n="hero.subtitle">Voice-first crop damage reporting. This web demo uses the same claim extraction, state machine, and PDF generator that will power the WhatsApp bot.</p>
     </header>
 
     <section class="grid">
       <div class="card">
-        <h2>Report Crop Damage</h2>
-        <p class="muted">Describe the damage by typing or speaking in your chosen language. Example: <em>"Meri ganne ki fasal barish se kharab ho gayi, village Rampur."</em></p>
-        <label for="phone">Phone number</label>
+        <h2 data-i18n="report.title">Report Crop Damage</h2>
+        <p class="muted" data-i18n-html="report.intro">Describe the damage by typing or speaking in your chosen language. Example: <em>"Meri ganne ki fasal barish se kharab ho gayi, village Rampur."</em></p>
+        <label for="phone" data-i18n="report.phone">Phone number</label>
         <input id="phone" type="text" value="+919999001111" placeholder="+91..." />
-        <label for="language">Language / भाषा (for voice and bot replies)</label>
+        <label for="language" data-i18n="report.language">Language / भाषा (for voice and bot replies)</label>
         <select id="language">
           <option value="hi" selected>हिन्दी (Hindi)</option>
           <option value="en">English</option>
@@ -29,39 +29,39 @@
           <option value="bn">বাংলা (Bengali)</option>
           <option value="mr">मराठी (Marathi)</option>
         </select>
-        <label for="message">Message / voice transcript</label>
-        <textarea id="message" rows="4" placeholder="Type or speak the farmer message here..."></textarea>
+        <label for="message" data-i18n="report.message">Message / voice transcript</label>
+        <textarea id="message" rows="4" data-i18n-placeholder="report.messagePlaceholder" placeholder="Type or speak the farmer message here..."></textarea>
         <div class="actions">
-          <button id="voiceBtn" class="btn">🎙 Speak</button>
-          <button id="sendBtn" class="btn primary">Send Message</button>
-          <button id="resetBtn" class="btn">New Demo Claim</button>
+          <button id="voiceBtn" class="btn" data-i18n="report.speak">🎙 Speak</button>
+          <button id="sendBtn" class="btn primary" data-i18n="report.send">Send Message</button>
+          <button id="resetBtn" class="btn" data-i18n="report.reset">New Demo Claim</button>
         </div>
         <div id="status" class="status"></div>
-        <p class="muted">Voice input uses your browser's speech recognition (works in Chrome/Edge). Speak, review the text, then send.</p>
+        <p class="muted" data-i18n="report.voiceHint">Voice input uses your browser's speech recognition (works in Chrome/Edge). Speak, review the text, then send.</p>
 
-        <label for="photo">Upload damage photos (optional, 1-3)</label>
+        <label for="photo" data-i18n="report.photoLabel">Upload damage photos (optional, 1-3)</label>
         <div id="photoDrop" class="photo-drop">
           <input id="photo" type="file" accept="image/*" multiple />
-          <p class="muted">Choose photos or drag them here. JPG/PNG/WEBP, up to 10 MB each, minimum 480x360.</p>
+          <p class="muted" data-i18n="report.photoHint">Choose photos or drag them here. JPG/PNG/WEBP, up to 10 MB each, minimum 480x360.</p>
         </div>
         <div id="photoPreview" class="photo-preview"></div>
         <div id="photoQuality" class="photo-quality"></div>
         <div class="actions">
-          <button id="photoBtn" class="btn primary">Upload Photos</button>
-          <button id="forcePhotoBtn" class="btn" hidden>Upload Anyway</button>
+          <button id="photoBtn" class="btn primary" data-i18n="report.uploadPhotos">Upload Photos</button>
+          <button id="forcePhotoBtn" class="btn" hidden data-i18n="report.uploadAnyway">Upload Anyway</button>
         </div>
       </div>
 
       <div class="card">
-        <h2>Bot Reply</h2>
+        <h2 data-i18n="bot.title">Bot Reply</h2>
         <div id="chat" class="chat"></div>
       </div>
     </section>
 
     <section class="card">
       <div class="row">
-        <h2>Current Claim</h2>
-        <button id="refreshBtn" class="btn">Refresh</button>
+        <h2 data-i18n="claim.title">Current Claim</h2>
+        <button id="refreshBtn" class="btn" data-i18n="claim.refresh">Refresh</button>
       </div>
       <div id="reviewArea" class="review-area"></div>
       <div id="claim" class="claim"></div>
@@ -71,19 +71,32 @@
 
     <section class="card">
       <div class="row">
-        <h2>Recent Claims</h2>
-        <span class="muted">Operator view</span>
+        <div>
+          <h2 data-i18n="table.title">Recent Claims</h2>
+          <span class="muted" data-i18n="table.subtitle">Operator view</span>
+        </div>
+        <button id="csvBtn" class="btn" data-i18n="table.exportCsv">Export CSV</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Claim ID</th><th>Phone</th><th>Status</th><th>Crop</th><th>Damage</th><th>Village</th><th>Date</th><th>PDF</th></tr></thead>
+          <thead><tr>
+            <th data-i18n="table.claimId">Claim ID</th>
+            <th data-i18n="table.phone">Phone</th>
+            <th data-i18n="table.status">Status</th>
+            <th data-i18n="table.crop">Crop</th>
+            <th data-i18n="table.damage">Damage</th>
+            <th data-i18n="table.village">Village</th>
+            <th data-i18n="table.date">Date</th>
+            <th data-i18n="table.pdf">PDF</th>
+          </tr></thead>
           <tbody id="claimsBody"><tr><td colspan="8" class="muted">Loading...</td></tr></tbody>
         </table>
       </div>
     </section>
 
-    <footer class="footer muted">WhatsApp webhook endpoints <code>/webhook</code> remain active for future Meta integration. This web UI uses the same backend services.</footer>
+    <footer class="footer muted" data-i18n="footer.text">WhatsApp webhook endpoints /webhook remain active for future Meta integration. This web UI uses the same backend services.</footer>
   </main>
+  <script src="/static/js/i18n.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

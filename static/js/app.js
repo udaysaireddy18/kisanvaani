@@ -1,4 +1,5 @@
 let claimId = null;
+let currentClaim = null;
 
 const $ = (id) => document.getElementById(id);
 const chat = $("chat");
@@ -18,7 +19,19 @@ function escapeHtml(value) {
 function formatTime(value) {
   if (!value) return "";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString(currentLanguage());
+}
+
+function displayStatus(status) {
+  const key = "statusValue." + status;
+  const translated = t(key);
+  return translated === key ? status : translated;
+}
+
+function displayEvent(label) {
+  const key = "timeline." + label;
+  const translated = t(key);
+  return translated === key ? label : translated;
 }
 
 function setStatus(msg, isError = false) {
@@ -36,6 +49,11 @@ function currentLanguage() {
   return languageSelect ? languageSelect.value : "hi";
 }
 
+// Restore the saved language before rendering any dynamic content.
+const savedLang = i18nGetLang();
+if (languageSelect) languageSelect.value = savedLang;
+i18nSetLang(savedLang);
+
 function initRecognition() {
   if (!SpeechRecognition) return;
   recognition = new SpeechRecognition();
@@ -47,8 +65,8 @@ function initRecognition() {
   recognition.onstart = () => {
     listening = true;
     voiceBtn.classList.add("listening");
-    voiceBtn.textContent = "■ Stop";
-    setStatus("Listening... speak now.");
+    voiceBtn.textContent = t("report.stop");
+    setStatus(t("status.listening"));
   };
 
   recognition.onresult = (event) => {
@@ -59,29 +77,29 @@ function initRecognition() {
     if (!transcript) return;
     const box = $("message");
     box.value = box.value.trim() ? `${box.value.trim()} ${transcript}` : transcript;
-    setStatus("Transcript added. Review it, then click Send Message.");
+    setStatus(t("status.transcriptAdded"));
   };
 
   recognition.onerror = (event) => {
     const errors = {
-      "not-allowed": "Microphone permission denied. Allow mic access and try again.",
-      "no-speech": "No speech detected. Try again.",
-      "audio-capture": "No microphone found.",
-      "network": "Speech service unavailable. You can type the message instead.",
+      "not-allowed": t("voice.not-allowed"),
+      "no-speech": t("voice.no-speech"),
+      "audio-capture": t("voice.audio-capture"),
+      "network": t("voice.network"),
     };
-    setStatus(errors[event.error] || `Voice error: ${event.error}`, true);
+    setStatus(errors[event.error] || t("status.voiceError", { error: event.error }), true);
   };
 
   recognition.onend = () => {
     listening = false;
     voiceBtn.classList.remove("listening");
-    voiceBtn.textContent = "🎙 Speak";
+    voiceBtn.textContent = t("report.speak");
   };
 }
 
 function toggleVoice() {
   if (!SpeechRecognition) {
-    setStatus("Voice input is not supported in this browser. Use Chrome/Edge, or type the message.", true);
+    setStatus(t("status.voiceNotSupported"), true);
     return;
   }
   if (!recognition) initRecognition();
@@ -93,7 +111,7 @@ function toggleVoice() {
   try {
     recognition.start();
   } catch (err) {
-    setStatus(`Could not start voice input: ${err.message}`, true);
+    setStatus(t("status.voiceStartError", { error: err.message }), true);
   }
 }
 
@@ -115,8 +133,9 @@ async function api(path, opts = {}) {
 function renderClaim(claim) {
   const el = $("claim");
   const pdfArea = $("pdfArea");
+  currentClaim = claim || null;
   if (!claim) {
-    el.innerHTML = '<div class="muted">No claim yet. Send a message to start.</div>';
+    el.innerHTML = `<div class="muted">${escapeHtml(t("claim.none"))}</div>`;
     pdfArea.innerHTML = "";
     renderReview(null);
     renderTimeline(null);
@@ -126,22 +145,28 @@ function renderClaim(claim) {
   renderReview(claim);
   renderTimeline(claim);
   const fields = [
-    ["Claim ID", claim.id], ["Status", claim.status], ["Phone", claim.farmer_phone],
-    ["Crop", claim.crop || "-"], ["Damage", claim.damage_type || "-"], ["Village", claim.village || "-"],
-    ["Incident Date", claim.incident_date || "-"], ["Missing", (claim.missing_fields || []).join(", ") || "None"],
-    ["Photos", String(claim.photo_count ?? 0)], ["Confidence", String(claim.confidence ?? 0)],
+    [t("field.claimId"), claim.id],
+    [t("field.status"), displayStatus(claim.status)],
+    [t("field.phone"), claim.farmer_phone],
+    [t("field.crop"), claim.crop || "-"],
+    [t("field.damage"), claim.damage_type || "-"],
+    [t("field.village"), claim.village || "-"],
+    [t("field.incidentDate"), claim.incident_date || "-"],
+    [t("field.missing"), (claim.missing_fields || []).join(", ") || t("value.none")],
+    [t("field.photos"), String(claim.photo_count ?? 0)],
+    [t("field.confidence"), String(claim.confidence ?? 0)],
   ];
   el.innerHTML = fields.map(([k, v]) => `<div class="field"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`).join("");
 
   if (claim.status === "READY" || claim.status === "PDF_GENERATED") {
     const pdfBtn = claim.status === "PDF_GENERATED"
-      ? `<a class="btn primary" href="/api/claims/${escapeHtml(claim.id)}/pdf" target="_blank">Download PDF</a>`
-      : `<button class="btn primary" id="genPdfBtn">Generate PDF</button>`;
+      ? `<a class="btn primary" href="/api/claims/${escapeHtml(claim.id)}/pdf" target="_blank">${escapeHtml(t("claim.downloadPdf"))}</a>`
+      : `<button class="btn primary" id="genPdfBtn">${escapeHtml(t("claim.generatePdf"))}</button>`;
     pdfArea.innerHTML = pdfBtn;
     const gen = $("genPdfBtn");
     if (gen) gen.onclick = generatePdf;
   } else {
-    pdfArea.innerHTML = '<span class="muted">PDF available when claim is READY (all fields + at least 1 photo).</span>';
+    pdfArea.innerHTML = `<span class="muted">${escapeHtml(t("claim.pdfHint"))}</span>`;
   }
 }
 
@@ -153,19 +178,19 @@ function renderTimeline(claim) {
   }
   const events = claim.timeline || [];
   if (!events.length) {
-    el.innerHTML = '<p class="muted">No status events yet.</p>';
+    el.innerHTML = `<p class="muted">${escapeHtml(t("claim.timelineNone"))}</p>`;
     return;
   }
   el.innerHTML = `
     <div class="timeline-card">
-      <h3>Status timeline</h3>
+      <h3>${escapeHtml(t("claim.timelineTitle"))}</h3>
       <ol class="timeline">
         ${events.map((event) => `
           <li class="timeline-item">
             <span class="dot"></span>
             <div class="timeline-body">
-              <div class="timeline-label">${escapeHtml(event.label)}</div>
-              <div class="timeline-meta">${escapeHtml(event.status)} · ${escapeHtml(formatTime(event.created_at))}</div>
+              <div class="timeline-label">${escapeHtml(displayEvent(event.label))}</div>
+              <div class="timeline-meta">${escapeHtml(displayStatus(event.status))} · ${escapeHtml(formatTime(event.created_at))}</div>
             </div>
           </li>`).join("")}
       </ol>
@@ -175,27 +200,27 @@ function renderTimeline(claim) {
 function renderReview(claim) {
   const el = $("reviewArea");
   if (!claim) {
-    el.innerHTML = '<p class="muted">Review fields appear here after you send a message.</p>';
+    el.innerHTML = `<p class="muted">${escapeHtml(t("claim.reviewNone"))}</p>`;
     return;
   }
   if (claim.status === "PDF_GENERATED") {
-    el.innerHTML = '<p class="muted">PDF already generated. Start a new demo claim to edit details.</p>';
+    el.innerHTML = `<p class="muted">${escapeHtml(t("claim.reviewLocked"))}</p>`;
     return;
   }
   el.innerHTML = `
     <div class="review-card">
       <div class="row">
-        <h3>Review extracted details</h3>
-        <span class="muted">Correct anything wrong, then save.</span>
+        <h3>${escapeHtml(t("claim.reviewTitle"))}</h3>
+        <span class="muted">${escapeHtml(t("claim.reviewHint"))}</span>
       </div>
       <div class="review-grid">
-        <label>Crop<input id="editCrop" type="text" maxlength="64" value="${escapeHtml(claim.crop || "")}" placeholder="e.g. sugarcane"></label>
-        <label>Damage type<input id="editDamage" type="text" maxlength="64" value="${escapeHtml(claim.damage_type || "")}" placeholder="e.g. rain"></label>
-        <label>Village<input id="editVillage" type="text" maxlength="128" value="${escapeHtml(claim.village || "")}" placeholder="e.g. Rampur"></label>
-        <label>Incident date<input id="editDate" type="text" maxlength="32" value="${escapeHtml(claim.incident_date || "")}" placeholder="DD/MM/YYYY"></label>
+        <label>${escapeHtml(t("review.crop"))}<input id="editCrop" type="text" maxlength="64" value="${escapeHtml(claim.crop || "")}" placeholder="${escapeHtml(t("review.ph.crop"))}"></label>
+        <label>${escapeHtml(t("review.damage"))}<input id="editDamage" type="text" maxlength="64" value="${escapeHtml(claim.damage_type || "")}" placeholder="${escapeHtml(t("review.ph.damage"))}"></label>
+        <label>${escapeHtml(t("review.village"))}<input id="editVillage" type="text" maxlength="128" value="${escapeHtml(claim.village || "")}" placeholder="${escapeHtml(t("review.ph.village"))}"></label>
+        <label>${escapeHtml(t("review.date"))}<input id="editDate" type="text" maxlength="32" value="${escapeHtml(claim.incident_date || "")}" placeholder="${escapeHtml(t("review.ph.date"))}"></label>
       </div>
       <div class="actions">
-        <button id="saveDetailsBtn" class="btn primary">Save Details</button>
+        <button id="saveDetailsBtn" class="btn primary">${escapeHtml(t("claim.saveDetails"))}</button>
       </div>
     </div>`;
   $("saveDetailsBtn").addEventListener("click", saveDetails);
@@ -212,13 +237,13 @@ async function saveDetails() {
     language: currentLanguage(),
   };
   if (btn) btn.disabled = true;
-  setStatus("Saving details...");
+  setStatus(t("status.saving"));
   try {
     const data = await api(`/api/claims/${claimId}/details`, { method: "PUT", body: JSON.stringify(payload) });
     (data.replies || []).forEach(r => addMsg("bot", r));
     renderClaim(data.claim);
     await loadClaims();
-    setStatus("Details saved.");
+    setStatus(t("status.detailsSaved"));
   } catch (e) { setStatus(e.message, true); }
   finally { if (btn) btn.disabled = false; }
 }
@@ -236,7 +261,7 @@ async function loadClaims() {
     const data = await api("/api/claims");
     const body = $("claimsBody");
     if (!data.claims.length) {
-      body.innerHTML = '<tr><td colspan="8" class="muted">No claims yet.</td></tr>';
+      body.innerHTML = `<tr><td colspan="8" class="muted">${escapeHtml(t("claim.noClaims"))}</td></tr>`;
       return;
     }
     body.innerHTML = data.claims.map(c => {
@@ -244,16 +269,16 @@ async function loadClaims() {
       return `
       <tr>
         <td><a href="#" class="link" data-id="${id}">${id}</a></td>
-        <td>${escapeHtml(c.farmer_phone)}</td><td>${escapeHtml(c.status)}</td><td>${escapeHtml(c.crop || "-")}</td>
+        <td>${escapeHtml(c.farmer_phone)}</td><td>${escapeHtml(displayStatus(c.status))}</td><td>${escapeHtml(c.crop || "-")}</td>
         <td>${escapeHtml(c.damage_type || "-")}</td><td>${escapeHtml(c.village || "-")}</td><td>${escapeHtml(c.incident_date || "-")}</td>
-        <td>${c.pdf_path ? `<a class="link" href="/api/claims/${id}/pdf" target="_blank">PDF</a>` : "-"}</td>
+        <td>${c.pdf_path ? `<a class="link" href="/api/claims/${id}/pdf" target="_blank">${escapeHtml(t("table.pdfLink"))}</a>` : "-"}</td>
       </tr>`;
     }).join("");
     body.querySelectorAll("a[data-id]").forEach(a => a.addEventListener("click", async (e) => {
       e.preventDefault();
       claimId = a.dataset.id;
       await refreshClaim();
-      setStatus(`Loaded ${claimId}`);
+      setStatus(t("status.loaded", { id: claimId }));
     }));
   } catch (e) { setStatus(e.message, true); }
 }
@@ -261,9 +286,9 @@ async function loadClaims() {
 async function sendMessage() {
   const phone = $("phone").value.trim();
   const message = $("message").value.trim();
-  if (!phone || !message) return setStatus("Phone and message are required.", true);
+  if (!phone || !message) return setStatus(t("status.phoneAndMessageRequired"), true);
   $("sendBtn").disabled = true;
-  setStatus("Sending...");
+  setStatus(t("status.sending"));
   addMsg("user", message);
   try {
     const data = await api("/api/web/messages", { method: "POST", body: JSON.stringify({ phone, message, claim_id: claimId, language: currentLanguage() }) });
@@ -271,7 +296,7 @@ async function sendMessage() {
     renderClaim(data.claim);
     $("message").value = "";
     await loadClaims();
-    setStatus("Message processed.");
+    setStatus(t("status.messageProcessed"));
   } catch (e) { setStatus(e.message, true); }
   finally { $("sendBtn").disabled = false; }
 }
@@ -305,17 +330,17 @@ async function renderPhotoPreview() {
   }
 
   const problems = [];
-  if (files.length > 3) problems.push("Select at most 3 photos at a time.");
+  if (files.length > 3) problems.push(t("status.selectAtMost3Long"));
   const cards = [];
   for (const file of files) {
     const url = URL.createObjectURL(file);
     previewUrls.push(url);
     const info = await loadImageInfo(url);
     const sizeMb = (file.size / 1024 / 1024).toFixed(2);
-    if (!file.type.startsWith("image/")) problems.push(`${file.name}: not an image file.`);
-    if (file.size > MAX_IMAGE_BYTES) problems.push(`${file.name}: larger than 10 MB.`);
+    if (!file.type.startsWith("image/")) problems.push(t("status.notImage", { name: file.name }));
+    if (file.size > MAX_IMAGE_BYTES) problems.push(t("status.tooLarge", { name: file.name }));
     if (info.width && (info.width < MIN_IMAGE_WIDTH || info.height < MIN_IMAGE_HEIGHT)) {
-      problems.push(`${file.name}: smaller than 480x360.`);
+      problems.push(t("status.tooSmall", { name: file.name }));
     }
     cards.push(`
       <div class="photo-thumb" data-name="${escapeHtml(file.name)}">
@@ -329,7 +354,7 @@ async function renderPhotoPreview() {
   box.innerHTML = cards.join("");
   qualityBox.innerHTML = problems.length
     ? problems.map((problem) => `<div class="quality bad">${escapeHtml(problem)}</div>`).join("")
-    : '<div class="quality ok">Preview ready. Sharpness will be checked on upload.</div>';
+    : `<div class="quality ok">${escapeHtml(t("status.previewReady"))}</div>`;
   $("photoBtn").disabled = problems.length > 0;
 }
 
@@ -352,13 +377,13 @@ function clearPhotoPreview() {
 async function uploadPhoto(force = false) {
   const phone = $("phone").value.trim();
   const files = pendingPhotos.length ? pendingPhotos : Array.from($("photo").files || []);
-  if (!files.length) return setStatus("Select a photo first.", true);
-  if (files.length > 3) return setStatus("Select at most 3 photos.", true);
-  if (!phone) return setStatus("Phone is required.", true);
+  if (!files.length) return setStatus(t("status.selectPhoto"), true);
+  if (files.length > 3) return setStatus(t("status.selectAtMost3Short"), true);
+  if (!phone) return setStatus(t("status.phoneRequired"), true);
 
   $("photoBtn").disabled = true;
   $("forcePhotoBtn").disabled = true;
-  setStatus(force ? "Uploading anyway..." : "Uploading photo(s)...");
+  setStatus(force ? t("status.uploadingAnyway") : t("status.uploading"));
   const uploaded = [];
   try {
     let lastClaim = null;
@@ -376,13 +401,18 @@ async function uploadPhoto(force = false) {
         err.warning = Boolean(data.warning);
         throw err;
       }
-      addMsg("user", `[Photo uploaded: ${file.name}]`);
+      addMsg("user", t("status.photoUploadedItem", { name: file.name }));
       (data.replies || []).forEach((r) => addMsg("bot", r));
       markPhotoUploaded(file);
       uploaded.push(file);
       lastClaim = data.claim;
       if (data.quality) {
-        setStatus(`Uploaded ${file.name}: ${data.quality.width}x${data.quality.height}, sharpness ${data.quality.sharpness}.`);
+        setStatus(t("status.uploadedQuality", {
+          name: file.name,
+          width: data.quality.width,
+          height: data.quality.height,
+          sharpness: data.quality.sharpness,
+        }));
       }
     }
     pendingPhotos = pendingPhotos.filter((file) => !uploaded.includes(file));
@@ -390,12 +420,12 @@ async function uploadPhoto(force = false) {
     await loadClaims();
     $("photo").value = "";
     $("forcePhotoBtn").hidden = true;
-    setStatus(`${uploaded.length} photo(s) uploaded.`);
+    setStatus(t("status.photosUploaded", { count: uploaded.length }));
   } catch (e) {
     pendingPhotos = pendingPhotos.filter((file) => !uploaded.includes(file));
     setStatus(e.message, true);
     if (e.warning) {
-      $("photoQuality").innerHTML = `<div class="quality warn">${escapeHtml(e.message)} Click Upload Anyway to use the remaining photo(s).</div>`;
+      $("photoQuality").innerHTML = `<div class="quality warn">${escapeHtml(e.message)} ${escapeHtml(t("status.clickUploadAnyway"))}</div>`;
       $("forcePhotoBtn").hidden = false;
     }
   } finally {
@@ -406,19 +436,25 @@ async function uploadPhoto(force = false) {
 
 async function generatePdf() {
   if (!claimId) return;
-  setStatus("Generating PDF...");
+  setStatus(t("status.generatingPdf"));
   try {
     const data = await api(`/api/claims/${claimId}/pdf`, { method: "POST" });
     renderClaim(data.claim);
     await loadClaims();
-    setStatus("PDF generated.");
+    setStatus(t("status.pdfGenerated"));
     window.open(`/api/claims/${claimId}/pdf`, "_blank");
   } catch (e) { setStatus(e.message, true); }
+}
+
+function exportCsv() {
+  // The endpoint sets Content-Disposition, so the browser downloads the file.
+  window.location.href = "/api/admin/claims.csv";
 }
 
 $("sendBtn").addEventListener("click", sendMessage);
 $("photoBtn").addEventListener("click", () => uploadPhoto(false));
 $("forcePhotoBtn").addEventListener("click", () => uploadPhoto(true));
+$("csvBtn").addEventListener("click", exportCsv);
 $("photo").addEventListener("change", renderPhotoPreview);
 const photoDrop = $("photoDrop");
 photoDrop.addEventListener("dragover", (event) => {
@@ -437,11 +473,16 @@ photoDrop.addEventListener("drop", (event) => {
 });
 voiceBtn.addEventListener("click", toggleVoice);
 languageSelect.addEventListener("change", () => {
-  if (recognition) recognition.lang = currentLanguage();
-  setStatus(`Language set to ${languageSelect.options[languageSelect.selectedIndex].text}.`);
+  const lang = currentLanguage();
+  i18nSetLang(lang);
+  if (recognition) recognition.lang = lang;
+  renderClaim(currentClaim);
+  loadClaims();
+  if (pendingPhotos.length) renderPhotoPreview();
+  setStatus(t("status.languageSet", { name: languageSelect.options[languageSelect.selectedIndex].text }));
 });
 $("refreshBtn").addEventListener("click", async () => { await refreshClaim(); await loadClaims(); });
-$("resetBtn").addEventListener("click", () => { claimId = null; chat.innerHTML = ""; clearPhotoPreview(); renderClaim(null); setStatus("Started new demo claim session."); });
+$("resetBtn").addEventListener("click", () => { claimId = null; chat.innerHTML = ""; clearPhotoPreview(); renderClaim(null); setStatus(t("status.newDemo")); });
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 
 renderClaim(null);

@@ -43,6 +43,7 @@ kisanvaani/
   templates/index.html
   static/css/style.css
   static/js/app.js
+  static/js/i18n.js
   db/
     models.py init_db.py session.py
   services/
@@ -111,6 +112,7 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 - Choose a language in the web demo dropdown, click **🎙 Speak**, allow microphone access, speak the report, review the transcript in the box, then click **Send Message**.
 - Voice recognition uses the browser's Web Speech API, so **Chrome or Edge** are recommended. No API key is needed for voice in the web demo.
 - Bot replies follow the selected language. Crop/damage/village/date extraction supports keywords in all six supported languages.
+- **Full UI translation:** changing the language dropdown translates every label, heading, button, status message, table header, and timeline entry on the page (not just bot replies). The choice is remembered in the browser for future visits.
 
 ## Photo preview and quality check
 
@@ -119,11 +121,18 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 - The backend also verifies the image is a valid JPG/PNG/WEBP and estimates sharpness. A likely-blurry photo returns a warning with an **Upload Anyway** option.
 - Successful uploads return quality metrics in the JSON response.
 
+## Admin CSV export
+
+- Click **Export CSV** in the **Recent Claims** card to download every claim as `kisanvaani_claims.csv`.
+- The file includes claim ID, phone, status, crop, damage type, village, incident date, missing fields, confidence, follow-ups, photo count, PDF status, and created/updated timestamps.
+- The export is UTF-8 with a BOM, so Hindi/Telugu/Tamil/Bengali/Marathi text opens correctly in Excel.
+
 ## Web API endpoints (demo)
 
 - `GET /` - web UI
 - `GET /health` - health check
 - `GET /api/claims` - list claims
+- `GET /api/admin/claims.csv` - download all claims as UTF-8 CSV
 - `GET /api/claims/<id>` - claim detail (includes a `timeline` array with timestamps)
 - `PUT /api/claims/<id>/details` - `{crop, damage_type, village, incident_date, language?}` (review card save)
 - `POST /api/web/messages` - `{phone, message, language?, claim_id?}`
@@ -141,6 +150,7 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 5. Bot asks for photos. Upload 1-2 photos.
 6. Claim becomes READY; click Generate PDF / Download PDF.
 7. See the status timeline and the claim in Recent Claims table.
+8. Click **Export CSV** to download all claims, or switch the language dropdown to translate the entire page.
 
 ## Scope boundaries
 

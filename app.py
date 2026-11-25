@@ -23,6 +23,7 @@ from services.claim_flow import process_incoming_message
 from services.pdf_generator import PDFGenerationError, generate_claim_pdf
 from services.web_api import (
     PhotoQualityWarning,
+    build_claims_csv,
     get_claim_detail,
     list_claims,
     mark_pdf_generated,
@@ -90,6 +91,20 @@ def api_claims() -> tuple[dict, int]:
     except Exception:
         logger.exception("Failed to list claims")
         return jsonify({"error": "Failed to load claims"}), 500
+
+
+@app.get("/api/admin/claims.csv")
+def api_export_claims_csv() -> Response | tuple[dict, int]:
+    """Export all claims as a UTF-8 CSV file for admin/operator use."""
+    try:
+        return Response(
+            build_claims_csv(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="kisanvaani_claims.csv"'},
+        )
+    except Exception:
+        logger.exception("Failed to export claims CSV")
+        return jsonify({"error": "Failed to export claims"}), 500
 
 
 @app.get("/api/claims/<claim_id>")

@@ -6,11 +6,12 @@ This keeps the web demo behavior aligned with the future WhatsApp bot flow.
 
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import re
 import uuid
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any
 
@@ -266,6 +267,46 @@ def list_claims(limit: int = 50) -> list[dict[str, Any]]:
     with session_scope() as session:
         claims = session.query(Claim).order_by(Claim.created_at.desc()).limit(limit).all()
         return [serialize_claim(session, c) for c in claims]
+
+
+CSV_COLUMNS = [
+    "Claim ID", "Phone", "Status", "Crop", "Damage Type", "Village",
+    "Incident Date", "Missing Fields", "Confidence", "Follow-ups",
+    "Photos", "PDF Generated", "Created At", "Updated At",
+]
+
+
+def build_claims_csv() -> str:
+    """Serialize every claim as CSV text, with a BOM so Excel reads UTF-8."""
+    with session_scope() as session:
+        claims = session.query(Claim).order_by(Claim.created_at.desc()).all()
+        rows = []
+        for claim in claims:
+            photos = session.query(Media).filter(
+                Media.claim_id == claim.id, Media.media_type == "image"
+            ).count()
+            rows.append([
+                claim.id,
+                claim.farmer_phone,
+                claim.status.value if hasattr(claim.status, "value") else str(claim.status),
+                claim.crop or "",
+                claim.damage_type or "",
+                claim.village or "",
+                claim.incident_date or "",
+                ", ".join(claim.missing_fields or []),
+                claim.confidence if claim.confidence is not None else "",
+                claim.followup_count or 0,
+                photos,
+                "Yes" if claim.pdf_path else "No",
+                _iso(claim.created_at) or "",
+                _iso(claim.updated_at) or "",
+            ])
+
+    buffer = StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow(CSV_COLUMNS)
+    writer.writerows(rows)
+    return "\ufeff" + buffer.getvalue()
 
 
 def mark_pdf_generated(claim_id: str, pdf_path: str) -> dict[str, Any] | None:

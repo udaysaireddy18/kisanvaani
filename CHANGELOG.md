@@ -15,6 +15,13 @@
   - Web UI shows thumbnails, dimensions, and file sizes for up to 3 selected/dragged photos before upload.
   - Backend validates JPG/PNG/WEBP format, 1 KB-10 MB size, and 480x360 minimum dimensions.
   - A simple sharpness score warns on likely-blurry images and allows confirmation with **Upload Anyway** (`force=true`).
+- Added **Full UI translation**.
+  - New `static/js/i18n.js` dictionaries cover every UI string in Hindi, English, Telugu, Tamil, Bengali, and Marathi.
+  - The language dropdown now translates headings, labels, buttons, placeholders, status messages, claim fields, table headers, timeline events, and statuses; the choice persists in localStorage.
+  - Dynamic content is re-rendered on language change, and timestamps use the selected locale.
+- Added **Admin CSV export**.
+  - New `GET /api/admin/claims.csv` exports every claim with fields, status, confidence, photos, and timestamps as UTF-8 CSV with a BOM for Excel.
+  - The Recent Claims card now has an **Export CSV** button.
 
 ## 2026-11-24
 

@@ -45,6 +45,22 @@ textarea { resize: vertical; }
 .timeline-item .dot { position:absolute; left:-6px; top:3px; width:10px; height:10px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px #e3f3e6; }
 .timeline-label { font-size:13px; font-weight:600; }
 .timeline-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+.photo-drop { border:2px dashed #bfd4c1; border-radius:12px; padding:12px; background:#fbfdfb; }
+.photo-drop.dragover { border-color:var(--green); background:#eef7ef; }
+.photo-drop .muted { margin:8px 0 0; }
+.photo-preview { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.photo-thumb { position:relative; width:120px; background:#f8fbf8; border:1px solid #e0e9e0; border-radius:10px; padding:6px; }
+.photo-thumb img { width:100%; height:80px; object-fit:cover; border-radius:6px; display:block; }
+.thumb-name { font-size:12px; margin-top:6px; word-break:break-all; }
+.thumb-meta { font-size:11px; color:var(--muted); }
+.thumb-badge { position:absolute; top:10px; right:10px; background:var(--green); color:#fff; border-radius:999px; padding:2px 6px; font-size:11px; display:none; }
+.photo-thumb.uploaded .thumb-badge { display:block; }
+.photo-quality { margin-top:10px; font-size:12px; }
+.quality { padding:6px 8px; border-radius:8px; margin-bottom:4px; }
+.quality.ok { background:#e8f5e9; color:var(--green-dark); }
+.quality.warn { background:#fff4ce; color:#7a5b00; }
+.quality.bad { background:#ffe8e6; color:var(--danger); }
+.btn[hidden] { display:none; }
 .row { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
 .muted { color:var(--muted); font-size:13px; }
 .table-wrap { overflow:auto; }

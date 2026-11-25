@@ -22,6 +22,7 @@ from db.session import session_scope
 from services.claim_flow import process_incoming_message
 from services.pdf_generator import PDFGenerationError, generate_claim_pdf
 from services.web_api import (
+    PhotoQualityWarning,
     get_claim_detail,
     list_claims,
     mark_pdf_generated,
@@ -147,12 +148,15 @@ def api_web_photo() -> tuple[dict, int]:
     phone = str(request.form.get("phone") or "").strip()
     claim_id = str(request.form.get("claim_id") or "").strip() or None
     language = str(request.form.get("language") or "hi").strip()
+    force = str(request.form.get("force") or "").lower() in {"1", "true", "yes"}
     photo = request.files.get("photo")
     if not phone or not photo:
         return jsonify({"error": "phone and photo are required"}), 400
     try:
-        result = process_web_photo(phone=phone, photo=photo, claim_id=claim_id, language=language)
+        result = process_web_photo(phone=phone, photo=photo, claim_id=claim_id, language=language, force=force)
         return jsonify(result), 200
+    except PhotoQualityWarning as exc:
+        return jsonify({"error": str(exc), "warning": True}), 422
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception:

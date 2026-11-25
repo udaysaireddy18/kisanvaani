@@ -10,9 +10,11 @@ import json
 import logging
 import re
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageFilter, ImageStat, UnidentifiedImageError
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -33,6 +35,15 @@ from services.extractor import extract_fields, normalize_date
 logger = logging.getLogger(__name__)
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 REVIEW_FIELD_LIMITS = {"crop": 64, "damage_type": 64, "village": 128, "incident_date": 32}
+MIN_IMAGE_WIDTH = 480
+MIN_IMAGE_HEIGHT = 360
+MIN_IMAGE_BYTES = 1024
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+BLUR_EDGE_MEAN_MIN = 8.0
+
+
+class PhotoQualityWarning(Exception):
+    """A photo is usable but failed a soft quality check (for example, blur)."""
 
 
 def process_web_text(phone: str, text: str, claim_id: str | None = None,
@@ -159,8 +170,56 @@ def _apply_direct_answer(claim: Claim, asked_field: str | None, text: str) -> No
     })
 
 
+def inspect_photo(data: bytes, filename: str, force: bool = False) -> dict[str, Any]:
+    """Validate an uploaded image and return simple quality metrics.
+
+    Hard failures (corrupt file, wrong format, wrong size) raise ValueError.
+    A likely-blurry image raises PhotoQualityWarning unless force=True.
+    """
+    size = len(data)
+    if size < MIN_IMAGE_BYTES:
+        raise ValueError("Photo is empty or too small to be useful.")
+    if size > MAX_IMAGE_BYTES:
+        raise ValueError("Photo is too large. Maximum size is 10 MB.")
+
+    ext = Path(secure_filename(filename)).suffix.lower() or ".jpg"
+    if ext not in ALLOWED_IMAGE_EXT:
+        raise ValueError("Only image files are allowed (.jpg, .png, .webp)")
+
+    try:
+        with Image.open(BytesIO(data)) as probe:
+            probe.verify()
+        with Image.open(BytesIO(data)) as image:
+            width, height = image.size
+            image_format = (image.format or "").upper()
+            edges = image.convert("L").resize((256, 256)).filter(ImageFilter.FIND_EDGES)
+            sharpness = round(ImageStat.Stat(edges).mean[0], 2)
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValueError("Invalid or corrupted image file.") from exc
+
+    if image_format not in {"JPEG", "PNG", "WEBP"}:
+        raise ValueError("Only JPG, PNG, or WEBP images are supported.")
+    if width < MIN_IMAGE_WIDTH or height < MIN_IMAGE_HEIGHT:
+        raise ValueError(
+            f"Photo is too small ({width}x{height}). Minimum is {MIN_IMAGE_WIDTH}x{MIN_IMAGE_HEIGHT} pixels."
+        )
+
+    quality = {
+        "width": width,
+        "height": height,
+        "bytes": size,
+        "format": image_format,
+        "sharpness": sharpness,
+    }
+    if sharpness < BLUR_EDGE_MEAN_MIN and not force:
+        raise PhotoQualityWarning(
+            f"Photo looks blurry (sharpness {sharpness}). Upload a clearer photo or confirm to use this one."
+        )
+    return quality
+
+
 def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = None,
-                      language: str = "hi") -> dict[str, Any]:
+                      language: str = "hi", force: bool = False) -> dict[str, Any]:
     """Save an uploaded photo and attach it to a claim."""
     phone = (phone or "").strip()
     if not phone:
@@ -168,15 +227,15 @@ def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = Non
     if not photo or not photo.filename:
         raise ValueError("photo file is required")
 
-    ext = Path(secure_filename(photo.filename)).suffix.lower() or ".jpg"
-    if ext not in ALLOWED_IMAGE_EXT:
-        raise ValueError("Only image files are allowed (.jpg, .png, .webp)")
+    data = photo.read()
+    quality = inspect_photo(data, photo.filename, force=force)
 
+    ext = Path(secure_filename(photo.filename)).suffix.lower() or ".jpg"
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"web_{uuid.uuid4().hex}{ext}"
     file_path = MEDIA_DIR / filename
-    photo.save(file_path)
-    logger.info("Saved web photo phone=%s path=%s", phone, file_path)
+    file_path.write_bytes(data)
+    logger.info("Saved web photo phone=%s path=%s quality=%s", phone, file_path, quality)
 
     with session_scope() as session:
         claim = _get_open_claim(session, phone, claim_id)
@@ -192,7 +251,7 @@ def process_web_photo(phone: str, photo: FileStorage, claim_id: str | None = Non
         replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
-        return {"replies": replies, "claim": serialize_claim(session, claim)}
+        return {"replies": replies, "claim": serialize_claim(session, claim), "quality": quality}
 
 
 def get_claim_detail(claim_id: str) -> dict[str, Any] | None:

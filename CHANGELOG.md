@@ -11,6 +11,10 @@
   - New `claim_events` table records Claim created, Details received, Photos uploaded, Claim ready, and PDF generated with timestamps.
   - Claim JSON now includes a `timeline` array, and the web UI renders it under Current Claim.
   - Older claims without stored events get a derived timeline from their messages, photos, and timestamps.
+- Added **Photo preview + quality check**.
+  - Web UI shows thumbnails, dimensions, and file sizes for up to 3 selected/dragged photos before upload.
+  - Backend validates JPG/PNG/WEBP format, 1 KB-10 MB size, and 480x360 minimum dimensions.
+  - A simple sharpness score warns on likely-blurry images and allows confirmation with **Upload Anyway** (`force=true`).
 
 ## 2026-11-24
 

@@ -12,7 +12,7 @@ It now has **two interfaces over the same backend**:
 2. Backend extracts claim fields: crop, damage, village, date.
 3. The web UI shows the extracted values in an editable review card; correct them and click **Save Details** before continuing.
 4. Bot asks 1-2 follow-up questions if required fields are missing.
-5. Farmer uploads/sends 1-3 damage photos.
+5. Farmer previews and uploads/sends 1-3 damage photos; type, size, dimensions, and sharpness are checked.
 6. Claim becomes READY; operator generates a one-page insurer-ready PDF.
 7. A status timeline shows Claim created → Details received → Photos uploaded → Claim ready → PDF generated with timestamps.
 
@@ -112,6 +112,13 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 - Voice recognition uses the browser's Web Speech API, so **Chrome or Edge** are recommended. No API key is needed for voice in the web demo.
 - Bot replies follow the selected language. Crop/damage/village/date extraction supports keywords in all six supported languages.
 
+## Photo preview and quality check
+
+- Select or drag up to 3 photos in the web demo. Thumbnails, file names, dimensions, and file sizes appear before upload.
+- The browser blocks non-images, files over 10 MB, and images smaller than 480x360.
+- The backend also verifies the image is a valid JPG/PNG/WEBP and estimates sharpness. A likely-blurry photo returns a warning with an **Upload Anyway** option.
+- Successful uploads return quality metrics in the JSON response.
+
 ## Web API endpoints (demo)
 
 - `GET /` - web UI
@@ -120,7 +127,7 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 - `GET /api/claims/<id>` - claim detail (includes a `timeline` array with timestamps)
 - `PUT /api/claims/<id>/details` - `{crop, damage_type, village, incident_date, language?}` (review card save)
 - `POST /api/web/messages` - `{phone, message, language?, claim_id?}`
-- `POST /api/web/photos` - multipart form: `phone`, `photo`, `language?`, `claim_id?`
+- `POST /api/web/photos` - multipart form: `phone`, `photo`, `language?`, `claim_id?`, `force?` (accept blurry photo)
 - `POST /api/claims/<id>/pdf` - generate PDF
 - `GET /api/claims/<id>/pdf` - download PDF
 - `GET /webhook`, `POST /webhook` - WhatsApp Cloud API

@@ -3,6 +3,11 @@ let claimId = null;
 const $ = (id) => document.getElementById(id);
 const chat = $("chat");
 const statusEl = $("status");
+const MIN_IMAGE_WIDTH = 480;
+const MIN_IMAGE_HEIGHT = 360;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+let pendingPhotos = [];
+let previewUrls = [];
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -271,30 +276,132 @@ async function sendMessage() {
   finally { $("sendBtn").disabled = false; }
 }
 
-async function uploadPhoto() {
-  const file = $("photo").files[0];
+function revokePreviewUrls() {
+  previewUrls.forEach((url) => URL.revokeObjectURL(url));
+  previewUrls = [];
+}
+
+function loadImageInfo(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve({ width: 0, height: 0 });
+    img.src = url;
+  });
+}
+
+async function renderPhotoPreview() {
+  const files = Array.from($("photo").files || []);
+  pendingPhotos = files;
+  revokePreviewUrls();
+  const box = $("photoPreview");
+  const qualityBox = $("photoQuality");
+  $("forcePhotoBtn").hidden = true;
+
+  if (!files.length) {
+    box.innerHTML = "";
+    qualityBox.innerHTML = "";
+    return;
+  }
+
+  const problems = [];
+  if (files.length > 3) problems.push("Select at most 3 photos at a time.");
+  const cards = [];
+  for (const file of files) {
+    const url = URL.createObjectURL(file);
+    previewUrls.push(url);
+    const info = await loadImageInfo(url);
+    const sizeMb = (file.size / 1024 / 1024).toFixed(2);
+    if (!file.type.startsWith("image/")) problems.push(`${file.name}: not an image file.`);
+    if (file.size > MAX_IMAGE_BYTES) problems.push(`${file.name}: larger than 10 MB.`);
+    if (info.width && (info.width < MIN_IMAGE_WIDTH || info.height < MIN_IMAGE_HEIGHT)) {
+      problems.push(`${file.name}: smaller than 480x360.`);
+    }
+    cards.push(`
+      <div class="photo-thumb" data-name="${escapeHtml(file.name)}">
+        <span class="thumb-badge">✓</span>
+        <img src="${url}" alt="${escapeHtml(file.name)}">
+        <div class="thumb-name">${escapeHtml(file.name)}</div>
+        <div class="thumb-meta">${info.width || "?"}×${info.height || "?"} · ${sizeMb} MB</div>
+      </div>`);
+  }
+
+  box.innerHTML = cards.join("");
+  qualityBox.innerHTML = problems.length
+    ? problems.map((problem) => `<div class="quality bad">${escapeHtml(problem)}</div>`).join("")
+    : '<div class="quality ok">Preview ready. Sharpness will be checked on upload.</div>';
+  $("photoBtn").disabled = problems.length > 0;
+}
+
+function markPhotoUploaded(file) {
+  const thumbs = Array.from($("photoPreview").querySelectorAll(".photo-thumb"));
+  const thumb = thumbs.find((node) => node.dataset.name === file.name);
+  if (thumb) thumb.classList.add("uploaded");
+}
+
+function clearPhotoPreview() {
+  $("photo").value = "";
+  pendingPhotos = [];
+  revokePreviewUrls();
+  $("photoPreview").innerHTML = "";
+  $("photoQuality").innerHTML = "";
+  $("forcePhotoBtn").hidden = true;
+  $("photoBtn").disabled = false;
+}
+
+async function uploadPhoto(force = false) {
   const phone = $("phone").value.trim();
-  if (!file) return setStatus("Select a photo first.", true);
+  const files = pendingPhotos.length ? pendingPhotos : Array.from($("photo").files || []);
+  if (!files.length) return setStatus("Select a photo first.", true);
+  if (files.length > 3) return setStatus("Select at most 3 photos.", true);
   if (!phone) return setStatus("Phone is required.", true);
+
   $("photoBtn").disabled = true;
-  setStatus("Uploading photo...");
+  $("forcePhotoBtn").disabled = true;
+  setStatus(force ? "Uploading anyway..." : "Uploading photo(s)...");
+  const uploaded = [];
   try {
-    const fd = new FormData();
-    fd.append("photo", file);
-    fd.append("phone", phone);
-    fd.append("language", currentLanguage());
-    if (claimId) fd.append("claim_id", claimId);
-    const res = await fetch("/api/web/photos", { method: "POST", body: fd });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Upload failed");
-    addMsg("user", `[Photo uploaded: ${file.name}]`);
-    (data.replies || []).forEach(r => addMsg("bot", r));
-    renderClaim(data.claim);
-    $("photo").value = "";
+    let lastClaim = null;
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append("photo", file);
+      fd.append("phone", phone);
+      fd.append("language", currentLanguage());
+      if (claimId) fd.append("claim_id", claimId);
+      if (force) fd.append("force", "true");
+      const res = await fetch("/api/web/photos", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.error || "Upload failed");
+        err.warning = Boolean(data.warning);
+        throw err;
+      }
+      addMsg("user", `[Photo uploaded: ${file.name}]`);
+      (data.replies || []).forEach((r) => addMsg("bot", r));
+      markPhotoUploaded(file);
+      uploaded.push(file);
+      lastClaim = data.claim;
+      if (data.quality) {
+        setStatus(`Uploaded ${file.name}: ${data.quality.width}x${data.quality.height}, sharpness ${data.quality.sharpness}.`);
+      }
+    }
+    pendingPhotos = pendingPhotos.filter((file) => !uploaded.includes(file));
+    renderClaim(lastClaim);
     await loadClaims();
-    setStatus("Photo uploaded.");
-  } catch (e) { setStatus(e.message, true); }
-  finally { $("photoBtn").disabled = false; }
+    $("photo").value = "";
+    $("forcePhotoBtn").hidden = true;
+    setStatus(`${uploaded.length} photo(s) uploaded.`);
+  } catch (e) {
+    pendingPhotos = pendingPhotos.filter((file) => !uploaded.includes(file));
+    setStatus(e.message, true);
+    if (e.warning) {
+      $("photoQuality").innerHTML = `<div class="quality warn">${escapeHtml(e.message)} Click Upload Anyway to use the remaining photo(s).</div>`;
+      $("forcePhotoBtn").hidden = false;
+    }
+  } finally {
+    $("photoBtn").disabled = false;
+    $("forcePhotoBtn").disabled = false;
+  }
 }
 
 async function generatePdf() {
@@ -310,14 +417,31 @@ async function generatePdf() {
 }
 
 $("sendBtn").addEventListener("click", sendMessage);
-$("photoBtn").addEventListener("click", uploadPhoto);
+$("photoBtn").addEventListener("click", () => uploadPhoto(false));
+$("forcePhotoBtn").addEventListener("click", () => uploadPhoto(true));
+$("photo").addEventListener("change", renderPhotoPreview);
+const photoDrop = $("photoDrop");
+photoDrop.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  photoDrop.classList.add("dragover");
+});
+photoDrop.addEventListener("dragleave", () => photoDrop.classList.remove("dragover"));
+photoDrop.addEventListener("drop", (event) => {
+  event.preventDefault();
+  photoDrop.classList.remove("dragover");
+  if (typeof DataTransfer === "undefined") return;
+  const transfer = new DataTransfer();
+  Array.from(event.dataTransfer.files).forEach((file) => transfer.items.add(file));
+  $("photo").files = transfer.files;
+  renderPhotoPreview();
+});
 voiceBtn.addEventListener("click", toggleVoice);
 languageSelect.addEventListener("change", () => {
   if (recognition) recognition.lang = currentLanguage();
   setStatus(`Language set to ${languageSelect.options[languageSelect.selectedIndex].text}.`);
 });
 $("refreshBtn").addEventListener("click", async () => { await refreshClaim(); await loadClaims(); });
-$("resetBtn").addEventListener("click", () => { claimId = null; chat.innerHTML = ""; renderClaim(null); setStatus("Started new demo claim session."); });
+$("resetBtn").addEventListener("click", () => { claimId = null; chat.innerHTML = ""; clearPhotoPreview(); renderClaim(null); setStatus("Started new demo claim session."); });
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 
 renderClaim(null);

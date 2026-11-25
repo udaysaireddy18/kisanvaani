@@ -39,10 +39,16 @@
         <div id="status" class="status"></div>
         <p class="muted">Voice input uses your browser's speech recognition (works in Chrome/Edge). Speak, review the text, then send.</p>
 
-        <label for="photo">Upload damage photo (optional, 1-3)</label>
-        <input id="photo" type="file" accept="image/*" />
+        <label for="photo">Upload damage photos (optional, 1-3)</label>
+        <div id="photoDrop" class="photo-drop">
+          <input id="photo" type="file" accept="image/*" multiple />
+          <p class="muted">Choose photos or drag them here. JPG/PNG/WEBP, up to 10 MB each, minimum 480x360.</p>
+        </div>
+        <div id="photoPreview" class="photo-preview"></div>
+        <div id="photoQuality" class="photo-quality"></div>
         <div class="actions">
-          <button id="photoBtn" class="btn">Upload Photo</button>
+          <button id="photoBtn" class="btn primary">Upload Photos</button>
+          <button id="forcePhotoBtn" class="btn" hidden>Upload Anyway</button>
         </div>
       </div>
 

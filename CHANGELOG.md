@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-25
+
+- Added **Review & edit extracted details** to the web demo.
+  - Crop, damage type, village, and incident date are shown in editable inputs after a message is processed.
+  - **Save Details** writes corrections back to the claim, normalizes the date, recalculates missing fields/confidence/status, and resets the follow-up count.
+  - Added `PUT /api/claims/<id>/details` and localized confirmation replies in all six languages.
+
 ## 2026-11-24
 
 - Verified the full local flow after server restarts: health check, web UI, language selection, follow-up replies, and PDF generation all work at `http://127.0.0.1:5000`.

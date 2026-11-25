@@ -4,6 +4,12 @@ const $ = (id) => document.getElementById(id);
 const chat = $("chat");
 const statusEl = $("status");
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg || "";
   statusEl.className = "status" + (isError ? " error" : "");
@@ -101,20 +107,22 @@ function renderClaim(claim) {
   if (!claim) {
     el.innerHTML = '<div class="muted">No claim yet. Send a message to start.</div>';
     pdfArea.innerHTML = "";
+    renderReview(null);
     return;
   }
   claimId = claim.id;
+  renderReview(claim);
   const fields = [
     ["Claim ID", claim.id], ["Status", claim.status], ["Phone", claim.farmer_phone],
     ["Crop", claim.crop || "-"], ["Damage", claim.damage_type || "-"], ["Village", claim.village || "-"],
     ["Incident Date", claim.incident_date || "-"], ["Missing", (claim.missing_fields || []).join(", ") || "None"],
     ["Photos", String(claim.photo_count ?? 0)], ["Confidence", String(claim.confidence ?? 0)],
   ];
-  el.innerHTML = fields.map(([k, v]) => `<div class="field"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  el.innerHTML = fields.map(([k, v]) => `<div class="field"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`).join("");
 
   if (claim.status === "READY" || claim.status === "PDF_GENERATED") {
     const pdfBtn = claim.status === "PDF_GENERATED"
-      ? `<a class="btn primary" href="/api/claims/${claim.id}/pdf" target="_blank">Download PDF</a>`
+      ? `<a class="btn primary" href="/api/claims/${escapeHtml(claim.id)}/pdf" target="_blank">Download PDF</a>`
       : `<button class="btn primary" id="genPdfBtn">Generate PDF</button>`;
     pdfArea.innerHTML = pdfBtn;
     const gen = $("genPdfBtn");
@@ -122,6 +130,57 @@ function renderClaim(claim) {
   } else {
     pdfArea.innerHTML = '<span class="muted">PDF available when claim is READY (all fields + at least 1 photo).</span>';
   }
+}
+
+function renderReview(claim) {
+  const el = $("reviewArea");
+  if (!claim) {
+    el.innerHTML = '<p class="muted">Review fields appear here after you send a message.</p>';
+    return;
+  }
+  if (claim.status === "PDF_GENERATED") {
+    el.innerHTML = '<p class="muted">PDF already generated. Start a new demo claim to edit details.</p>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="review-card">
+      <div class="row">
+        <h3>Review extracted details</h3>
+        <span class="muted">Correct anything wrong, then save.</span>
+      </div>
+      <div class="review-grid">
+        <label>Crop<input id="editCrop" type="text" maxlength="64" value="${escapeHtml(claim.crop || "")}" placeholder="e.g. sugarcane"></label>
+        <label>Damage type<input id="editDamage" type="text" maxlength="64" value="${escapeHtml(claim.damage_type || "")}" placeholder="e.g. rain"></label>
+        <label>Village<input id="editVillage" type="text" maxlength="128" value="${escapeHtml(claim.village || "")}" placeholder="e.g. Rampur"></label>
+        <label>Incident date<input id="editDate" type="text" maxlength="32" value="${escapeHtml(claim.incident_date || "")}" placeholder="DD/MM/YYYY"></label>
+      </div>
+      <div class="actions">
+        <button id="saveDetailsBtn" class="btn primary">Save Details</button>
+      </div>
+    </div>`;
+  $("saveDetailsBtn").addEventListener("click", saveDetails);
+}
+
+async function saveDetails() {
+  if (!claimId) return;
+  const btn = $("saveDetailsBtn");
+  const payload = {
+    crop: $("editCrop").value.trim(),
+    damage_type: $("editDamage").value.trim(),
+    village: $("editVillage").value.trim(),
+    incident_date: $("editDate").value.trim(),
+    language: currentLanguage(),
+  };
+  if (btn) btn.disabled = true;
+  setStatus("Saving details...");
+  try {
+    const data = await api(`/api/claims/${claimId}/details`, { method: "PUT", body: JSON.stringify(payload) });
+    (data.replies || []).forEach(r => addMsg("bot", r));
+    renderClaim(data.claim);
+    await loadClaims();
+    setStatus("Details saved.");
+  } catch (e) { setStatus(e.message, true); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 async function refreshClaim() {
@@ -140,13 +199,16 @@ async function loadClaims() {
       body.innerHTML = '<tr><td colspan="8" class="muted">No claims yet.</td></tr>';
       return;
     }
-    body.innerHTML = data.claims.map(c => `
+    body.innerHTML = data.claims.map(c => {
+      const id = escapeHtml(c.id);
+      return `
       <tr>
-        <td><a href="#" class="link" data-id="${c.id}">${c.id}</a></td>
-        <td>${c.farmer_phone}</td><td>${c.status}</td><td>${c.crop || "-"}</td>
-        <td>${c.damage_type || "-"}</td><td>${c.village || "-"}</td><td>${c.incident_date || "-"}</td>
-        <td>${c.pdf_path ? `<a class="link" href="/api/claims/${c.id}/pdf" target="_blank">PDF</a>` : "-"}</td>
-      </tr>`).join("");
+        <td><a href="#" class="link" data-id="${id}">${id}</a></td>
+        <td>${escapeHtml(c.farmer_phone)}</td><td>${escapeHtml(c.status)}</td><td>${escapeHtml(c.crop || "-")}</td>
+        <td>${escapeHtml(c.damage_type || "-")}</td><td>${escapeHtml(c.village || "-")}</td><td>${escapeHtml(c.incident_date || "-")}</td>
+        <td>${c.pdf_path ? `<a class="link" href="/api/claims/${id}/pdf" target="_blank">PDF</a>` : "-"}</td>
+      </tr>`;
+    }).join("");
     body.querySelectorAll("a[data-id]").forEach(a => a.addEventListener("click", async (e) => {
       e.preventDefault();
       claimId = a.dataset.id;

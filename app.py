@@ -21,7 +21,14 @@ from db.models import Claim, Media, Message
 from db.session import session_scope
 from services.claim_flow import process_incoming_message
 from services.pdf_generator import PDFGenerationError, generate_claim_pdf
-from services.web_api import get_claim_detail, list_claims, mark_pdf_generated, process_web_photo, process_web_text
+from services.web_api import (
+    get_claim_detail,
+    list_claims,
+    mark_pdf_generated,
+    process_web_photo,
+    process_web_text,
+    update_claim_details,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,6 +102,23 @@ def api_claim_detail(claim_id: str) -> tuple[dict, int]:
     except Exception:
         logger.exception("Failed to get claim claim_id=%s", claim_id)
         return jsonify({"error": "Failed to load claim"}), 500
+
+
+@app.put("/api/claims/<claim_id>/details")
+def api_update_claim_details(claim_id: str) -> tuple[dict, int]:
+    """Save corrected crop/damage/village/date values from the review card."""
+    body = request.get_json(silent=True) or {}
+    language = str(body.get("language") or "hi").strip()
+    try:
+        result = update_claim_details(claim_id=claim_id, fields=body, language=language)
+        return jsonify(result), 200
+    except LookupError:
+        return jsonify({"error": "Claim not found"}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Failed to update claim details claim_id=%s", claim_id)
+        return jsonify({"error": "Failed to save details"}), 500
 
 
 @app.post("/api/web/messages")

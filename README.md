@@ -10,9 +10,10 @@ It now has **two interfaces over the same backend**:
 
 1. Farmer reports damage by typing or speaking in the browser, with a chosen language (Hindi, English, Telugu, Tamil, Bengali, Marathi).
 2. Backend extracts claim fields: crop, damage, village, date.
-3. Bot asks 1-2 follow-up questions if required fields are missing.
-4. Farmer uploads/sends 1-3 damage photos.
-5. Claim becomes READY; operator generates a one-page insurer-ready PDF.
+3. The web UI shows the extracted values in an editable review card; correct them and click **Save Details** before continuing.
+4. Bot asks 1-2 follow-up questions if required fields are missing.
+5. Farmer uploads/sends 1-3 damage photos.
+6. Claim becomes READY; operator generates a one-page insurer-ready PDF.
 
 ## Tech stack
 
@@ -116,6 +117,7 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 - `GET /health` - health check
 - `GET /api/claims` - list claims
 - `GET /api/claims/<id>` - claim detail
+- `PUT /api/claims/<id>/details` - `{crop, damage_type, village, incident_date, language?}` (review card save)
 - `POST /api/web/messages` - `{phone, message, language?, claim_id?}`
 - `POST /api/web/photos` - multipart form: `phone`, `photo`, `language?`, `claim_id?`
 - `POST /api/claims/<id>/pdf` - generate PDF
@@ -127,9 +129,10 @@ No redesign needed: web and WhatsApp both use the same extraction, state machine
 1. Open the web app.
 2. Enter message: "Meri ganne ki fasal barish se kharab ho gayi, village Rampur."
 3. Bot asks for date. Reply: "12/11/2026".
-4. Bot asks for photos. Upload 1-2 photos.
-5. Claim becomes READY; click Generate PDF / Download PDF.
-6. See claim in Recent Claims table.
+4. In **Review extracted details**, correct any field and click **Save Details**.
+5. Bot asks for photos. Upload 1-2 photos.
+6. Claim becomes READY; click Generate PDF / Download PDF.
+7. See claim in Recent Claims table.
 
 ## Scope boundaries
 

@@ -124,6 +124,18 @@ def _extract_date(normalized: str) -> str | None:
     return None
 
 
+def normalize_date(value: str) -> str | None:
+    """Normalize a user-supplied date string to DD/MM/YYYY.
+
+    Accepts the same flexible formats as message extraction, so manually
+    corrected dates in the review card are stored consistently.
+    """
+    text = " ".join((value or "").lower().split())
+    if not text:
+        return None
+    return _extract_date(text)
+
+
 def _format_date(day: str, month: str, year: str) -> str | None:
     """Normalize date components to DD/MM/YYYY if valid."""
     try:

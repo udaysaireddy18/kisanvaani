@@ -19,11 +19,19 @@ from werkzeug.utils import secure_filename
 from config import MEDIA_DIR
 from db.models import Claim, ClaimStatus, Media, Message, MessageDirection
 from db.session import session_scope
-from services.claim_flow import _apply_extraction, _next_reply, _outbound_messages, normalize_language
-from services.extractor import extract_fields
+from services.claim_flow import (
+    REPLIES,
+    _apply_extraction,
+    _count_photos,
+    _next_reply,
+    _outbound_messages,
+    normalize_language,
+)
+from services.extractor import extract_fields, normalize_date
 
 logger = logging.getLogger(__name__)
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+REVIEW_FIELD_LIMITS = {"crop": 64, "damage_type": 64, "village": 128, "incident_date": 32}
 
 
 def process_web_text(phone: str, text: str, claim_id: str | None = None,
@@ -44,6 +52,73 @@ def process_web_text(phone: str, text: str, claim_id: str | None = None,
         replies = _next_reply(session, claim, normalize_language(language))
         session.add_all(_outbound_messages(claim, phone, replies))
         session.flush()
+        return {"replies": replies, "claim": serialize_claim(session, claim)}
+
+
+def update_claim_details(claim_id: str, fields: dict[str, Any], language: str = "hi") -> dict[str, Any]:
+    """Save operator-corrected claim fields from the web review card.
+
+    Values are trimmed, the date is normalized to DD/MM/YYYY, and the claim's
+    missing fields/confidence/status are recalculated from the edited values.
+    """
+    claim_id = (claim_id or "").strip()
+    if not claim_id:
+        raise ValueError("claim_id is required")
+
+    raw_values = {
+        "crop": str(fields.get("crop") or "").strip(),
+        "damage_type": str(fields.get("damage_type") or fields.get("damage") or "").strip(),
+        "village": str(fields.get("village") or "").strip(),
+        "incident_date": str(fields.get("incident_date") or fields.get("date") or "").strip(),
+    }
+    for name, limit in REVIEW_FIELD_LIMITS.items():
+        if len(raw_values[name]) > limit:
+            raise ValueError(f"{name} is too long (max {limit} characters)")
+
+    date_value = normalize_date(raw_values["incident_date"]) if raw_values["incident_date"] else ""
+    if raw_values["incident_date"] and not date_value:
+        raise ValueError("Invalid date. Use DD/MM/YYYY, for example 12/11/2026.")
+    raw_values["incident_date"] = date_value or ""
+
+    with session_scope() as session:
+        claim = session.get(Claim, claim_id)
+        if not claim:
+            raise LookupError("Claim not found")
+        if claim.status == ClaimStatus.PDF_GENERATED:
+            raise ValueError("PDF already generated. Start a new demo claim to edit details.")
+
+        claim.crop = raw_values["crop"] or None
+        claim.damage_type = raw_values["damage_type"] or None
+        claim.village = raw_values["village"] or None
+        claim.incident_date = raw_values["incident_date"] or None
+
+        missing = [key for key, value in (
+            ("crop", raw_values["crop"]),
+            ("damage", raw_values["damage_type"]),
+            ("village", raw_values["village"]),
+            ("date", raw_values["incident_date"]),
+        ) if not value]
+        claim.missing_fields = missing
+        claim.confidence = round((4 - len(missing)) / 4, 2)
+        claim.followup_count = 0
+
+        photos = _count_photos(session, claim.id)
+        claim.status = ClaimStatus.READY if not missing and photos >= 1 else ClaimStatus.COLLECTING
+
+        texts = REPLIES[normalize_language(language)]
+        if missing:
+            replies = [texts["need_all"]]
+        elif photos < 1:
+            replies = [texts["details_saved_need_photo"]]
+        else:
+            replies = [texts["details_saved_ready"].format(claim_id=claim.id)]
+        session.add_all(_outbound_messages(claim, claim.farmer_phone, replies))
+        session.flush()
+
+        logger.info(
+            "Updated claim details claim_id=%s missing=%s status=%s",
+            claim.id, claim.missing_fields, claim.status.value,
+        )
         return {"replies": replies, "claim": serialize_claim(session, claim)}
 
 

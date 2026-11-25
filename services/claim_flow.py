@@ -33,6 +33,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "कृपया पूरी जानकारी भेजें: फसल, नुकसान का प्रकार, गाँव और तारीख (DD/MM/YYYY).",
         "ask_photo": "धन्यवाद। कृपया 1-3 नुकसान की फ़ोटो भेजें।",
         "ready": "आपका क्लेम तैयार है। क्लेम ID: {claim_id}. ऑपरेटर PDF तैयार करेगा।",
+        "details_saved_need_photo": "विवरण सहेजे गए। कृपया 1-3 नुकसान की फ़ोटो अपलोड करें।",
+        "details_saved_ready": "विवरण सहेजे गए। आपका क्लेम तैयार है। क्लेम ID: {claim_id}.",
         "unsupported": "कृपया टेक्स्ट, वॉइस नोट या फ़ोटो भेजें ताकि हम आपका क्लेम बना सकें।",
     },
     "en": {
@@ -43,6 +45,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "Please send all details: crop, damage type, village, and date (DD/MM/YYYY).",
         "ask_photo": "Thank you. Please upload 1-3 photos of the damage.",
         "ready": "Your claim is ready. Claim ID: {claim_id}. The operator will generate the PDF.",
+        "details_saved_need_photo": "Details saved. Please upload 1-3 photos of the damage.",
+        "details_saved_ready": "Details saved. Your claim is ready. Claim ID: {claim_id}.",
         "unsupported": "Please send text, a voice note, or a photo so we can create your claim.",
     },
     "te": {
@@ -53,6 +57,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "దయచేసి అన్ని వివరాలు పంపండి: పంట, నష్టం రకం, గ్రామం, తేదీ (DD/MM/YYYY).",
         "ask_photo": "ధన్యవాదాలు. దయచేసి నష్టం యొక్క 1-3 ఫోటోలు అప్\u200dలోడ్ చేయండి.",
         "ready": "మీ క్లెయిమ్ సిద్ధంగా ఉంది. క్లెయిమ్ ID: {claim_id}. ఆపరేటర్ PDF ని రూపొందిస్తారు.",
+        "details_saved_need_photo": "వివరాలు భద్రపరచబడ్డాయి. దయచేసి నష్టం యొక్క 1-3 ఫోటోలు అప్\u200dలోడ్ చేయండి.",
+        "details_saved_ready": "వివరాలు భద్రపరచబడ్డాయి. మీ క్లెయిమ్ సిద్ధంగా ఉంది. క్లెయిమ్ ID: {claim_id}.",
         "unsupported": "మీ క్లెయిమ్ కోసం దయచేసి టెక్స్ట్, వాయిస్ నోట్ లేదా ఫోటో పంపండి.",
     },
     "ta": {
@@ -63,6 +69,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "தயவுசெய்து அனைத்து விவரங்களையும் அனுப்புங்கள்: பயிர், சேத வகை, கிராமம், தேதி (DD/MM/YYYY).",
         "ask_photo": "நன்றி. சேதத்தின் 1-3 படங்களை பதிவேற்றம் செய்யுங்கள்.",
         "ready": "உங்கள் க்ளெயிம் தயாராக உள்ளது. க்ளெயிம் ID: {claim_id}. ஆபரேட்டர் PDF ஐ உருவாக்குவார்.",
+        "details_saved_need_photo": "விவரங்கள் சேமிக்கப்பட்டன. சேதத்தின் 1-3 படங்களை பதிவேற்றம் செய்யுங்கள்.",
+        "details_saved_ready": "விவரங்கள் சேமிக்கப்பட்டன. உங்கள் க்ளெயிம் தயாராக உள்ளது. க்ளெயிம் ID: {claim_id}.",
         "unsupported": "உங்கள் க்ளெயிமுக்கு தயவுசெய்து உரை, குரல் குறிப்பு அல்லது படம் அனுப்புங்கள்.",
     },
     "bn": {
@@ -73,6 +81,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "অনুগ্রহ করে সব তথ্য পাঠান: ফসল, ক্ষতির ধরন, গ্রাম এবং তারিখ (DD/MM/YYYY).",
         "ask_photo": "ধন্যবাদ। অনুগ্রহ করে ক্ষতির 1-3টি ছবি আপলোড করুন।",
         "ready": "আপনার ক্লেইম প্রস্তুত। ক্লেইম ID: {claim_id}. অপারেটর PDF তৈরি করবেন।",
+        "details_saved_need_photo": "বিবরণ সংরক্ষিত হয়েছে। অনুগ্রহ করে ক্ষতির 1-3টি ছবি আপলোড করুন।",
+        "details_saved_ready": "বিবরণ সংরক্ষিত হয়েছে। আপনার ক্লেইম প্রস্তুত। ক্লেইম ID: {claim_id}.",
         "unsupported": "আপনার ক্লেইমের জন্য অনুগ্রহ করে টেক্সট, ভয়েস নোট বা ছবি পাঠান।",
     },
     "mr": {
@@ -83,6 +93,8 @@ REPLIES: dict[str, dict[str, str]] = {
         "need_all": "कृपया सर्व माहिती पाठवा: पीक, नुकसानाचा प्रकार, गाव आणि तारीख (DD/MM/YYYY).",
         "ask_photo": "धन्यवाद. कृपया नुकसानाचे 1-3 फोटो अपलोड करा.",
         "ready": "तुमचा क्लेम तयार आहे. क्लेम ID: {claim_id}. ऑपरेटर PDF तयार करेल.",
+        "details_saved_need_photo": "तपशील जतन केले. कृपया नुकसानाचे 1-3 फोटो अपलोड करा.",
+        "details_saved_ready": "तपशील जतन केले. तुमचा क्लेम तयार आहे. क्लेम ID: {claim_id}.",
         "unsupported": "तुमच्या क्लेमसाठी कृपया टेक्स्ट, व्हॉइस नोट किंवा फोटो पाठवा.",
     },
 }
